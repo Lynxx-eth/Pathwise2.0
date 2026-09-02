@@ -13,6 +13,23 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 3 — Gemini provider: done.** `AI_PROVIDER=gemini` +
+  `GEMINI_API_KEY` selects a new REST-based provider (no SDK dependency).
+  Prompts and response validators were extracted to `src/ai/prompts.ts`,
+  shared by OpenAI and Gemini so both answer to the same hardened
+  instructions (untrusted-input rule, anti-placeholder topic rule, distractor
+  quality bar, Socratic no-answer contract) — providers differ only in
+  transport, per the "do not hardwire Gemini" rule. Validators unit-tested;
+  `scripts/check-real-ai.mjs` works with either real provider. The real-AI
+  quality check (DEPLOYMENT.md step 0) still needs a human with a key.
+- **Phase 2 — Personalized onboarding: done.** `LearnerProfile` (1:1 User)
+  stores field, academic level, subjects, topics, content preferences,
+  community interests, study style and buddy preferences — the signals later
+  recommendation/matching phases read (never private files). `GET/PUT
+  /api/onboarding` back a 4-step, fully skippable wizard shown after privacy
+  acceptance; the same screen is the "Learning profile" editor linked from
+  Profile. Normalization rules (`lib/onboardingModel.ts`) are unit-tested;
+  e2e in `scripts/smoke-onboarding.mjs`.
 - **Phase 1 — Guest mode: done.** `POST /api/auth/guest` creates a real user
   row with a synthetic identity (`guest-<hex>@guest.pathwise.internal`, random
   password, `isGuest`, `guestExpiresAt`), so every ownership check and feature

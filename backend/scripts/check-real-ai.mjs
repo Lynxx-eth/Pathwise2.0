@@ -5,8 +5,9 @@
 // the output for a human to judge, because "the pipeline returns 200" and
 // "the topics are ones a student would recognise" are different claims.
 //
-// Usage:
+// Usage (either real provider):
 //   AI_PROVIDER=openai OPENAI_API_KEY=sk-... node scripts/check-real-ai.mjs path/to/syllabus.pdf
+//   AI_PROVIDER=gemini GEMINI_API_KEY=...   node scripts/check-real-ai.mjs path/to/syllabus.pdf
 //
 // Run it on ~10 real syllabi/slide decks from different subjects. For each,
 // ask: Are these the actual topics of the course? Are the weights sane? Would
@@ -31,7 +32,8 @@ if (!filePath) {
 if (ai.name === "mock") {
   console.error(
     "⚠️  AI provider is 'mock' — this check is only meaningful against a real provider.\n" +
-    "   Run with: AI_PROVIDER=openai OPENAI_API_KEY=sk-... node scripts/check-real-ai.mjs <file>"
+    "   Run with: AI_PROVIDER=openai OPENAI_API_KEY=sk-... node scripts/check-real-ai.mjs <file>\n" +
+    "         or: AI_PROVIDER=gemini GEMINI_API_KEY=...   node scripts/check-real-ai.mjs <file>"
   );
   process.exit(1);
 }

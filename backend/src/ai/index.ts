@@ -6,6 +6,7 @@ import { env } from "../lib/env.js";
 import type { AIProvider } from "./types.js";
 import { MockAIProvider } from "./mock.js";
 import { OpenAIProvider } from "./openai.js";
+import { GeminiProvider } from "./gemini.js";
 
 function createProvider(): AIProvider {
   if (env.AI_PROVIDER === "openai") {
@@ -16,6 +17,15 @@ function createProvider(): AIProvider {
       return new MockAIProvider();
     }
     return new OpenAIProvider();
+  }
+  if (env.AI_PROVIDER === "gemini") {
+    if (!env.GEMINI_API_KEY) {
+      console.warn(
+        "⚠️  AI_PROVIDER=gemini but GEMINI_API_KEY is empty — falling back to mock."
+      );
+      return new MockAIProvider();
+    }
+    return new GeminiProvider();
   }
   return new MockAIProvider();
 }

@@ -23,9 +23,13 @@ const schema = z.object({
   // frontend can both talk to one API (e.g. "http://localhost:5173,https://pathwise.vercel.app").
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   PORT: z.coerce.number().default(4000),
-  AI_PROVIDER: z.enum(["mock", "openai"]).default("mock"),
+  // "gemini" is the testing-phase primary (PATHWISE 2.0 Phase 3), but nothing
+  // outside src/ai/ may depend on which provider is active.
+  AI_PROVIDER: z.enum(["mock", "openai", "gemini"]).default("mock"),
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
+  GEMINI_API_KEY: z.string().default(""),
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
   FREE_COURSE_CAP: z.coerce.number().default(3),
 
   // Email — used for the forgot-password flow. Mock (default, free, logs to

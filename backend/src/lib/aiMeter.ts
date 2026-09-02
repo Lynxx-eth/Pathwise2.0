@@ -91,7 +91,12 @@ async function meter<T>(
 
   const startedAt = Date.now();
   let usage: TokenUsage = {
-    model: env.AI_PROVIDER === "openai" ? env.OPENAI_MODEL : "mock",
+    model:
+      env.AI_PROVIDER === "openai"
+        ? env.OPENAI_MODEL
+        : env.AI_PROVIDER === "gemini"
+          ? env.GEMINI_MODEL
+          : "mock",
     promptTokens: 0,
     completionTokens: 0,
   };

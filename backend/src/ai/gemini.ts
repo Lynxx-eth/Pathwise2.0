@@ -1,0 +1,170 @@
+// Gemini provider (PATHWISE 2.0 Phase 3) — the testing-phase primary.
+// Only used when AI_PROVIDER=gemini and GEMINI_API_KEY is set.
+//
+// Talks to the Generative Language REST API directly with fetch — no SDK
+// dependency. Prompts and response validation live in ./prompts.ts, shared
+// with every real provider; application logic never sees which provider
+// answered (the roadmap's "do not hardwire Gemini" rule).
+import type {
+  AIProvider,
+  AIResult,
+  ChatMessage,
+  ExtractedTopic,
+  MaterialVerdict,
+  QuizQuestion,
+  TokenUsage,
+} from "./types.js";
+import {
+  classifyMaterialPrompt,
+  extractTopicsPrompt,
+  generateQuizPrompt,
+  SOCRATIC_FALLBACK,
+  socraticSystemPrompt,
+  validateQuestions,
+  validateTopics,
+  validateVerdict,
+} from "./prompts.js";
+import { env } from "../lib/env.js";
+
+const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const REQUEST_TIMEOUT_MS = 60_000;
+
+interface GeminiResponse {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    finishReason?: string;
+  }[];
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+  };
+  error?: { code?: number; message?: string; status?: string };
+}
+
+export class GeminiProvider implements AIProvider {
+  readonly name = "gemini";
+  private model: string;
+
+  constructor() {
+    this.model = env.GEMINI_MODEL;
+  }
+
+  private async generate(
+    system: string,
+    contents: { role: "user" | "model"; parts: { text: string }[] }[],
+    jsonMode: boolean
+  ): Promise<{ text: string; usage: TokenUsage }> {
+    const url = `${API_BASE}/models/${this.model}:generateContent`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        // Key goes in a header, not the URL — URLs end up in logs.
+        "x-goog-api-key": env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+        generationConfig: jsonMode
+          ? { responseMimeType: "application/json" }
+          : {},
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as GeminiResponse;
+    if (!res.ok) {
+      // Meterable failure — aiMeter records the message on the AIUsage row.
+      throw new Error(
+        `Gemini ${res.status}: ${data.error?.message ?? res.statusText}`
+      );
+    }
+
+    const text =
+      data.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text ?? "")
+        .join("") ?? "";
+    return {
+      text,
+      usage: {
+        model: this.model,
+        promptTokens: data.usageMetadata?.promptTokenCount ?? 0,
+        completionTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+      },
+    };
+  }
+
+  private async json<T>(
+    system: string,
+    user: string
+  ): Promise<{ parsed: T; usage: TokenUsage }> {
+    const { text, usage } = await this.generate(
+      system,
+      [{ role: "user", parts: [{ text: user }] }],
+      true
+    );
+    let parsed: T;
+    try {
+      parsed = JSON.parse(text) as T;
+    } catch {
+      // A malformed response shouldn't 500 the request — callers handle empty.
+      parsed = {} as T;
+    }
+    return { parsed, usage };
+  }
+
+  async extractTopics(
+    courseName: string,
+    materialText: string
+  ): Promise<AIResult<ExtractedTopic[]>> {
+    const { system, user } = extractTopicsPrompt(courseName, materialText);
+    const { parsed, usage } = await this.json<{ topics: ExtractedTopic[] }>(
+      system,
+      user
+    );
+    return { value: validateTopics(parsed), usage };
+  }
+
+  async generateQuiz(
+    courseName: string,
+    topics: { name: string; weight: number }[],
+    count: number
+  ): Promise<AIResult<QuizQuestion[]>> {
+    const { system, user } = generateQuizPrompt(courseName, topics, count);
+    const { parsed, usage } = await this.json<{ questions: QuizQuestion[] }>(
+      system,
+      user
+    );
+    return { value: validateQuestions(parsed), usage };
+  }
+
+  async socraticReply(
+    courseName: string,
+    topicName: string | null,
+    history: ChatMessage[]
+  ): Promise<AIResult<string>> {
+    // Gemini's chat roles are "user" | "model"; ours are "user" | "assistant".
+    const contents = history.map((m) => ({
+      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+      parts: [{ text: m.content }],
+    }));
+    const { text, usage } = await this.generate(
+      socraticSystemPrompt(courseName, topicName),
+      contents,
+      false
+    );
+    return { value: text.trim() || SOCRATIC_FALLBACK, usage };
+  }
+
+  async classifyMaterial(
+    courseName: string,
+    materialText: string
+  ): Promise<AIResult<MaterialVerdict>> {
+    const { system, user } = classifyMaterialPrompt(courseName, materialText);
+    const { parsed, usage } = await this.json<Partial<MaterialVerdict>>(
+      system,
+      user
+    );
+    return { value: validateVerdict(parsed), usage };
+  }
+}
