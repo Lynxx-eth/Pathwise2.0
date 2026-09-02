@@ -265,6 +265,29 @@ export default function AppShell({ children }: { children: ReactNode }) {
         className="main"
         style={{ maxWidth: 1100, margin: "0 auto" }}
       >
+        {user?.isGuest && (
+          <div
+            className="form-notice"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 14,
+            }}
+          >
+            <span>
+              You're browsing as a guest —{" "}
+              {user.guestDaysLeft === 1
+                ? "everything is deleted tomorrow."
+                : `everything is deleted in ${user.guestDaysLeft ?? 7} days.`}
+            </span>
+            <NavLink to="/signup" className="btn btn-primary" style={{ flexShrink: 0 }}>
+              Keep my progress
+            </NavLink>
+          </div>
+        )}
         <div key={location.pathname} className="page-fade-in">
           {children}
         </div>

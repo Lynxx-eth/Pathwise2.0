@@ -40,11 +40,15 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Auth screens redirect away if already fully signed in.
+// Auth screens redirect away if already fully signed in. Guests are the
+// exception: they must be able to reach /signup to claim their account (and
+// /signin to switch to a real one).
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <FullPageLoader />;
-  if (user && user.privacyAccepted) return <Navigate to="/courses" replace />;
+  if (user && user.privacyAccepted && !user.isGuest) {
+    return <Navigate to="/courses" replace />;
+  }
   return <>{children}</>;
 }
 

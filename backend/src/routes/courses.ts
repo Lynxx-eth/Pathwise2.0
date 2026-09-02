@@ -13,6 +13,9 @@ import {
 } from "../lib/mastery.js";
 import { track } from "../lib/analytics.js";
 import { AIBudgetExceededError } from "../lib/aiMeter.js";
+import { isGuestUser } from "../lib/guests.js";
+import { guestFileTooLarge, guestMayUpload } from "../lib/guestPolicy.js";
+import { env } from "../lib/env.js";
 import type { Upload } from "@prisma/client";
 
 const createSchema = z.object({
@@ -218,6 +221,25 @@ export default async function courseRoutes(app: FastifyInstance) {
         return reply.code(415).send({
           error: `That file doesn't look like a real ${kind.toUpperCase()} — it may be renamed or corrupted.`,
         });
+      }
+
+      // Guest caps (PATHWISE 2.0 Phase 1): smaller files, fewer of them.
+      if (await isGuestUser(req.user.sub)) {
+        if (guestFileTooLarge(buffer.byteLength, env.GUEST_MAX_FILE_MB)) {
+          return reply.code(413).send({
+            error: "guest_limit",
+            message: `Guest uploads are capped at ${env.GUEST_MAX_FILE_MB}MB per file. Create a free account for bigger files.`,
+          });
+        }
+        const uploadCount = await prisma.upload.count({
+          where: { course: { userId: req.user.sub } },
+        });
+        if (!guestMayUpload(uploadCount, env.GUEST_UPLOAD_CAP)) {
+          return reply.code(403).send({
+            error: "guest_limit",
+            message: `Guests can upload ${env.GUEST_UPLOAD_CAP} files. Create a free account to keep going — everything you've done comes with you.`,
+          });
+        }
       }
 
       const saved = await storage.save(req.user.sub, data.filename, buffer);

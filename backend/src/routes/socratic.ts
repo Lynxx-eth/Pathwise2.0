@@ -20,6 +20,7 @@ import {
   retryNudge,
 } from "../lib/socraticGuard.js";
 import { recordSocraticDepth } from "../lib/mastery.js";
+import { isGuestUser } from "../lib/guests.js";
 import { awardXp, grantBadge, XP } from "../lib/gamification.js";
 import { track } from "../lib/analytics.js";
 import type { ChatMessage } from "../ai/types.js";
@@ -211,8 +212,11 @@ export default async function socraticRoutes(app: FastifyInstance) {
       // Hard per-session ceiling (cost control). Every turn is a paid AI call
       // — sometimes two, when the leak guard retries — and a session is the
       // one thing a student can keep open indefinitely. The rate limit slows
-      // the burn; this bounds it.
-      if (session.turnCount >= env.SOCRATIC_MAX_TURNS) {
+      // the burn; this bounds it. Guests get a tighter ceiling (Phase 1).
+      const maxTurns = (await isGuestUser(req.user.sub))
+        ? env.GUEST_SOCRATIC_MAX_TURNS
+        : env.SOCRATIC_MAX_TURNS;
+      if (session.turnCount >= maxTurns) {
         return reply.code(409).send({
           error: "session_turn_limit",
           message:

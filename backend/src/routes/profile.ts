@@ -132,6 +132,22 @@ export default async function profileRoutes(app: FastifyInstance) {
     }
     const data = parsed.data;
 
+    // Guests change their email by claiming an account (POST /api/auth/claim),
+    // not here — otherwise a guest could hold a real address hostage while
+    // its row is still scheduled to expire (PATHWISE 2.0 Phase 1).
+    if (data.email) {
+      const me = await prisma.user.findUnique({
+        where: { id: req.user.sub },
+        select: { isGuest: true },
+      });
+      if (me?.isGuest) {
+        return reply.code(403).send({
+          error: "guest_not_allowed",
+          message: "Create your free account to set an email address.",
+        });
+      }
+    }
+
     // Uniqueness is checked up front so the client gets a readable message
     // rather than a Prisma constraint error.
     if (data.email) {

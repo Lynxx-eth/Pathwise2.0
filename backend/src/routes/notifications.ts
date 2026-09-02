@@ -7,6 +7,7 @@ import {
   runNotificationSweep,
   purgeExpiredAccounts,
 } from "../lib/notifications.js";
+import { purgeExpiredGuests } from "../lib/guests.js";
 import type { NotificationLog } from "@prisma/client";
 
 export default async function notificationRoutes(app: FastifyInstance) {
@@ -63,7 +64,10 @@ export default async function notificationRoutes(app: FastifyInstance) {
 
     const notifications = await runNotificationSweep();
     const purged = await purgeExpiredAccounts();
+    // Guest data expires automatically (PATHWISE 2.0 Phase 1) — rows AND
+    // stored files.
+    const purgedGuests = await purgeExpiredGuests();
 
-    return reply.send({ notifications, purgedAccounts: purged });
+    return reply.send({ notifications, purgedAccounts: purged, purgedGuests });
   });
 }

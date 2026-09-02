@@ -67,6 +67,13 @@ model User {
   deletedAt      DateTime?
   purgeAfter     DateTime? // deletedAt + 30 days; a job hard-deletes past this
 
+  // Guest mode (PATHWISE 2.0 Phase 1). A guest is a real user row with a
+  // synthetic identity, so every ownership check and feature works unchanged.
+  // Guests expire: the cron sweep hard-deletes them (and their stored files)
+  // past guestExpiresAt. Claiming an account clears both fields.
+  isGuest        Boolean   @default(false)
+  guestExpiresAt DateTime?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -85,6 +92,7 @@ model User {
 
   @@index([deletedAt])
   @@index([purgeAfter])
+  @@index([isGuest, guestExpiresAt])
 }
 
 // ---------------------------------------------------------------------------

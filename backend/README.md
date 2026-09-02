@@ -98,8 +98,11 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET  | `/api/health` | — | Health + active AI/email/billing provider |
+| GET  | `/api/config` | — | Public feature flags (PATHWISE 2.0) |
 | POST | `/api/auth/signup` | — | Create account (rate limited 5/10min); accepts `referralCode` |
 | POST | `/api/auth/signin` | — | Log in (rate limited 10/10min) |
+| POST | `/api/auth/guest` | — | Start a guest session (Phase 1; rate limited 5/10min) |
+| POST | `/api/auth/claim` | ✔ | Convert the current guest into a real account, keeping all progress |
 | GET  | `/api/auth/me` | ✔ | Current user |
 | POST | `/api/auth/accept-privacy` | ✔ | Record one-time privacy + ToS acceptance |
 | POST | `/api/auth/forgot-password` | — | Request a reset link (generic response either way) |

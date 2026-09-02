@@ -8,6 +8,8 @@ export const features = {
   // Phase 0: Leaf Match is frozen. The code stays for a clean future
   // replacement (Wise Path), but the Garden XP economy is disabled.
   leafMatch: env.FEATURE_LEAF_MATCH,
+  // Phase 1: try the core loop before creating an account.
+  guestMode: env.FEATURE_GUEST_MODE,
 } as const;
 
 /** Shape returned by GET /api/config — safe to expose publicly. */

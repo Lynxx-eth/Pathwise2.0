@@ -13,10 +13,14 @@ import { api } from "./api";
 
 export interface Features {
   leafMatch: boolean;
+  guestMode: boolean;
 }
 
 const DEFAULT_FEATURES: Features = {
   leafMatch: false,
+  // Off until /api/config answers, so the button never shows against a
+  // server that would refuse it.
+  guestMode: false,
 };
 
 interface FeaturesState extends Features {

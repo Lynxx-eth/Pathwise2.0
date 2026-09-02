@@ -13,6 +13,8 @@ import { awardXp, grantBadge, XP } from "../lib/gamification.js";
 import { track } from "../lib/analytics.js";
 import { AIBudgetExceededError } from "../lib/aiMeter.js";
 import { maybeRewardReferral } from "../lib/referrals.js";
+import { isGuestUser } from "../lib/guests.js";
+import { guestMayStartQuiz } from "../lib/guestPolicy.js";
 import type { QuizItem } from "@prisma/client";
 
 const startSchema = z.object({
@@ -52,6 +54,22 @@ export default async function quizRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid input" });
     }
     const { courseId, kind, count, topicId } = parsed.data;
+
+    // Guest cap (PATHWISE 2.0 Phase 1): a handful of quizzes a day is plenty
+    // to feel the product; generation is a paid AI call.
+    if (await isGuestUser(req.user.sub)) {
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const startedToday = await prisma.quizSession.count({
+        where: { userId: req.user.sub, createdAt: { gte: startOfDay } },
+      });
+      if (!guestMayStartQuiz(startedToday, env.GUEST_QUIZ_SESSIONS_PER_DAY)) {
+        return reply.code(429).send({
+          error: "guest_limit",
+          message: `Guests can start ${env.GUEST_QUIZ_SESSIONS_PER_DAY} quizzes a day. Create a free account to keep going — your progress comes with you.`,
+        });
+      }
+    }
 
     try {
       const built = await buildQuizSession(req.user.sub, courseId, {

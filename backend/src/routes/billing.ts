@@ -53,6 +53,15 @@ export default async function billingRoutes(app: FastifyInstance) {
     const user = await prisma.user.findUnique({ where: { id: req.user.sub } });
     if (!user) return reply.code(404).send({ error: "User not found" });
 
+    // A guest has a synthetic email and expiring data — money must never be
+    // attached to that (PATHWISE 2.0 Phase 1). Claim an account first.
+    if (user.isGuest) {
+      return reply.code(403).send({
+        error: "guest_not_allowed",
+        message: "Create your free account first — then you can upgrade.",
+      });
+    }
+
     try {
       const session = await billing.createCheckout(
         user.id,

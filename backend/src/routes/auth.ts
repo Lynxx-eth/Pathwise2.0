@@ -8,6 +8,9 @@ import { env } from "../lib/env.js";
 import { rankFor } from "../lib/progression.js";
 import { attachReferral } from "../lib/referrals.js";
 import { track } from "../lib/analytics.js";
+import { features } from "../lib/features.js";
+import { createGuestUser } from "../lib/guests.js";
+import { guestDaysLeft } from "../lib/guestPolicy.js";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -50,6 +53,8 @@ function publicUser(
     xp: number;
     streakCount: number;
     bestStreak: number;
+    isGuest: boolean;
+    guestExpiresAt: Date | null;
   },
   isPremium = false
 ) {
@@ -65,6 +70,9 @@ function publicUser(
     bestStreak: u.bestStreak,
     rank: rankFor(u.xp),
     isPremium,
+    isGuest: u.isGuest,
+    // What the guest banner counts down; null for real accounts.
+    guestDaysLeft: u.isGuest ? guestDaysLeft(u.guestExpiresAt, new Date()) : null,
   };
 }
 
@@ -105,6 +113,94 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const token = app.jwt.sign({ sub: user.id, email: user.email });
       return reply.code(201).send({ token, user: publicUser(user) });
+    }
+  );
+
+  // Guest mode (PATHWISE 2.0 Phase 1): try the core loop with no account.
+  // A guest is a real user row with a synthetic, un-sign-in-able identity;
+  // limits are enforced on the capped routes and everything expires.
+  app.post(
+    "/api/auth/guest",
+    { config: { rateLimit: { max: 5, timeWindow: "10 minutes" } } },
+    async (req, reply) => {
+      if (!features.guestMode) {
+        return reply.code(403).send({ error: "feature_disabled" });
+      }
+      const parsed = z
+        .object({ timezone: z.string().max(64).optional() })
+        .safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid input" });
+      }
+
+      const user = await createGuestUser(parsed.data.timezone);
+      await track(user.id, "guest_started", {});
+
+      // The token dies with the guest — no point outliving the data.
+      const token = app.jwt.sign(
+        { sub: user.id, email: user.email },
+        { expiresIn: `${env.GUEST_TTL_DAYS}d` }
+      );
+      return reply.code(201).send({ token, user: publicUser(user) });
+    }
+  );
+
+  // Claim a guest session: the guest keeps every course, quiz, mastery row
+  // and streak — the row simply becomes a real account.
+  app.post(
+    "/api/auth/claim",
+    {
+      preHandler: [app.authenticate],
+      config: { rateLimit: { max: 5, timeWindow: "10 minutes" } },
+    },
+    async (req, reply) => {
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply
+          .code(400)
+          .send({ error: "Invalid input", details: parsed.error.flatten() });
+      }
+      const { name, email, password, timezone, referralCode } = parsed.data;
+
+      const me = await prisma.user.findUnique({ where: { id: req.user.sub } });
+      if (!me || me.deletedAt) {
+        return reply.code(404).send({ error: "User not found" });
+      }
+      if (!me.isGuest) {
+        return reply
+          .code(409)
+          .send({ error: "already_account", message: "You already have an account." });
+      }
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return reply
+          .code(409)
+          .send({ error: "An account with that email already exists." });
+      }
+
+      const user = await prisma.user.update({
+        where: { id: me.id },
+        data: {
+          name,
+          email,
+          passwordHash: await hashPassword(password),
+          timezone: timezone ?? me.timezone,
+          isGuest: false,
+          guestExpiresAt: null,
+          notifyEmail: true,
+          tosAcceptedVersion: env.TOS_VERSION,
+        },
+      });
+
+      if (referralCode) {
+        await attachReferral(user.id, referralCode);
+      }
+      await track(user.id, "guest_claimed", { referred: Boolean(referralCode) });
+
+      // Re-sign: the old token carries the synthetic email and guest TTL.
+      const token = app.jwt.sign({ sub: user.id, email: user.email });
+      return reply.send({ token, user: publicUser(user) });
     }
   );
 

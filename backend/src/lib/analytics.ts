@@ -9,6 +9,9 @@ import { prisma } from "./prisma.js";
 export type EventName =
   // Activation funnel
   | "signup"
+  // Guest mode (PATHWISE 2.0 Phase 1): sampling the product, then converting.
+  | "guest_started"
+  | "guest_claimed"
   | "privacy_accepted"
   | "course_created"
   | "upload_started"

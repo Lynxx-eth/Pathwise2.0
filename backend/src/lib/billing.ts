@@ -250,6 +250,21 @@ export interface Entitlements {
 const FREE_ANALYTICS_HISTORY_DAYS = 14;
 
 export async function entitlementsFor(userId: string): Promise<Entitlements> {
+  // Guests get the tightest tier of all — they exist to sample the core
+  // loop, not to be a free plan (PATHWISE 2.0 Phase 1).
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isGuest: true },
+  });
+  if (user?.isGuest) {
+    return {
+      isPremium: false,
+      courseCap: env.GUEST_COURSE_CAP,
+      analyticsHistoryDays: FREE_ANALYTICS_HISTORY_DAYS,
+      premiumCosmetics: false,
+    };
+  }
+
   const sub = await prisma.subscription.findUnique({ where: { userId } });
 
   // A canceled-but-still-paid subscription keeps its benefits until the period

@@ -31,6 +31,9 @@ export interface User {
   rank: { level: number; name: string; progress: number; nextXp: number | null };
   socraticIntroSeen: boolean;
   isPremium: boolean;
+  // Guest mode (PATHWISE 2.0 Phase 1).
+  isGuest: boolean;
+  guestDaysLeft: number | null;
 }
 
 interface AuthResponse {
@@ -48,6 +51,15 @@ interface AuthState {
     referralCode?: string
   ) => Promise<void>;
   signin: (email: string, password: string) => Promise<void>;
+  /** Start a guest session — the core loop with no account (Phase 1). */
+  continueAsGuest: () => Promise<void>;
+  /** Convert the current guest into a real account, keeping all progress. */
+  claimAccount: (
+    name: string,
+    email: string,
+    password: string,
+    referralCode?: string
+  ) => Promise<void>;
   acceptPrivacy: () => Promise<void>;
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
@@ -129,6 +141,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }
 
+  async function continueAsGuest() {
+    const res = await api.post<AuthResponse>("/api/auth/guest", {
+      timezone: localTimezone(),
+    });
+    setToken(res.token);
+    setUser(res.user);
+  }
+
+  async function claimAccount(
+    name: string,
+    email: string,
+    password: string,
+    referralCode?: string
+  ) {
+    const res = await api.post<AuthResponse>("/api/auth/claim", {
+      name,
+      email,
+      password,
+      timezone: localTimezone(),
+      referralCode: referralCode || undefined,
+    });
+    // The claim re-signs the token — the old one carries the guest identity.
+    setToken(res.token);
+    setUser(res.user);
+  }
+
   async function acceptPrivacy() {
     const res = await api.post<{ user: User }>("/api/auth/accept-privacy");
     setUser(res.user);
@@ -153,6 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signup,
         signin,
+        continueAsGuest,
+        claimAccount,
         acceptPrivacy,
         logout,
         forgotPassword,

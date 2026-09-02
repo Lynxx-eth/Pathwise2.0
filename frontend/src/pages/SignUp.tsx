@@ -6,8 +6,11 @@ import { LogoFull } from "../components/Logo";
 import { PasswordField } from "../components/PasswordField";
 
 export default function SignUp() {
-  const { signup } = useAuth();
+  const { signup, claimAccount, user } = useAuth();
   const navigate = useNavigate();
+  // A guest landing here isn't signing up fresh — they're claiming their
+  // session, keeping every course, quiz and streak (Phase 1).
+  const claiming = Boolean(user?.isGuest);
   // Referral links land here as /signup?ref=CODE (Step 14). The code is passed
   // through to signup and recorded as pending — nothing pays out until the new
   // user reaches their first real milestone.
@@ -37,9 +40,15 @@ export default function SignUp() {
 
     setBusy(true);
     try {
-      await signup(name, email, password, referralCode);
-      // New users always see the privacy statement next (shown once).
-      navigate("/privacy");
+      if (claiming) {
+        await claimAccount(name, email, password, referralCode);
+        // A guest already accepted the privacy statement.
+        navigate("/courses");
+      } else {
+        await signup(name, email, password, referralCode);
+        // New users always see the privacy statement next (shown once).
+        navigate("/privacy");
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -53,9 +62,13 @@ export default function SignUp() {
         <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
           <LogoFull height={38} animated />
         </div>
-        <h1 style={{ fontSize: 23, marginBottom: 6 }}>Start learning better</h1>
+        <h1 style={{ fontSize: 23, marginBottom: 6 }}>
+          {claiming ? "Keep everything you've done" : "Start learning better"}
+        </h1>
         <p style={{ color: "var(--ink-soft)", fontSize: 13.5, marginBottom: 26 }}>
-          Understand your courses — not just cram them.
+          {claiming
+            ? "Your courses, quizzes and streak come with you — this just makes them permanent."
+            : "Understand your courses — not just cram them."}
         </p>
 
         {error && <div className="form-error" role="alert">{error}</div>}
@@ -110,7 +123,13 @@ export default function SignUp() {
           style={{ marginTop: 6 }}
           disabled={busy}
         >
-          {busy ? "Creating account…" : "Create account"}
+          {busy
+            ? claiming
+              ? "Saving your progress…"
+              : "Creating account…"
+            : claiming
+              ? "Create account & keep progress"
+              : "Create account"}
         </button>
 
         <p

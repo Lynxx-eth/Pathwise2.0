@@ -3,7 +3,25 @@
 *Companion to [build-plan.md](./build-plan.md). Says what's built, where it
 lives, and what's deliberately still open. Update this alongside the code.*
 
-Last updated: 2026-07-29 (beta-prep pass)
+Last updated: 2026-09-02 (PATHWISE 2.0 phases begin)
+
+## PATHWISE 2.0 (2026-09-02 →)
+
+The 2.0 roadmap (see decision 0002) now drives development. Progress:
+
+- **Phase 0 — Freeze Leaf Match: done.** `FEATURE_LEAF_MATCH` (default off)
+  disables the Garden XP economy server-side; the UI hides every entry point.
+  Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
+  the frontend `FeaturesProvider`.
+- **Phase 1 — Guest mode: done.** `POST /api/auth/guest` creates a real user
+  row with a synthetic identity (`guest-<hex>@guest.pathwise.internal`, random
+  password, `isGuest`, `guestExpiresAt`), so every ownership check and feature
+  works unchanged. Server-enforced caps: 1 course, 3 uploads (10MB each),
+  tighter AI budget, 15 Socratic turns/session, 5 quizzes/day; billing and
+  email changes refused. `POST /api/auth/claim` converts the guest in place —
+  all courses, mastery and streaks survive. The cron sweep purges expired
+  guests including their stored files. Pure rules in `lib/guestPolicy.ts`
+  (unit-tested); lifecycle e2e in `scripts/smoke-guest.mjs`.
 
 ## Beta-prep pass (2026-07-29)
 

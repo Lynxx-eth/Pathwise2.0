@@ -75,6 +75,22 @@ const schema = z.object({
   // for a clean future replacement by Wise Path, but earning/spending Garden
   // XP is disabled and the UI entry points are hidden while the flag is off.
   FEATURE_LEAF_MATCH: envBool(false),
+  // Guest mode (Phase 1): try the core loop before creating an account.
+  FEATURE_GUEST_MODE: envBool(true),
+
+  // --- Guest limits (PATHWISE 2.0 Phase 1) --------------------------------
+  // All enforced server-side. Guests exist to sample the core loop, not to
+  // be a free tier — tighter caps everywhere, and everything expires.
+  GUEST_TTL_DAYS: z.coerce.number().min(1).max(90).default(7),
+  GUEST_COURSE_CAP: z.coerce.number().min(1).default(1),
+  // Total uploads across the guest's courses.
+  GUEST_UPLOAD_CAP: z.coerce.number().min(1).default(3),
+  // Per-file ceiling for guests (accounts get the global 25MB multipart cap).
+  GUEST_MAX_FILE_MB: z.coerce.number().min(1).max(25).default(10),
+  // Tighter daily AI budget for guests, in US cents. 0 disables the override.
+  GUEST_AI_DAILY_BUDGET_CENTS: z.coerce.number().default(10),
+  GUEST_SOCRATIC_MAX_TURNS: z.coerce.number().min(1).max(500).default(15),
+  GUEST_QUIZ_SESSIONS_PER_DAY: z.coerce.number().min(1).default(5),
 
   // Terms of Service version. Bump to re-prompt every user for acceptance.
   TOS_VERSION: z.string().default("2026-07-01"),

@@ -57,12 +57,23 @@ export async function spentTodayMicroUsd(userId: string): Promise<number> {
 }
 
 async function assertWithinBudget(userId: string | null): Promise<void> {
-  if (!userId || env.AI_DAILY_USER_BUDGET_CENTS <= 0) return;
+  if (!userId) return;
   // The mock provider is free — never gate it.
   if (ai.name === "mock") return;
 
+  // Guests get a tighter daily ceiling (PATHWISE 2.0 Phase 1).
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isGuest: true },
+  });
+  const budgetCents =
+    user?.isGuest && env.GUEST_AI_DAILY_BUDGET_CENTS > 0
+      ? env.GUEST_AI_DAILY_BUDGET_CENTS
+      : env.AI_DAILY_USER_BUDGET_CENTS;
+  if (budgetCents <= 0) return;
+
   const spent = await spentTodayMicroUsd(userId);
-  const capMicro = env.AI_DAILY_USER_BUDGET_CENTS * 10_000; // cents -> micro-USD
+  const capMicro = budgetCents * 10_000; // cents -> micro-USD
   if (spent >= capMicro) {
     throw new AIBudgetExceededError(Math.round(spent / 10_000));
   }

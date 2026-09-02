@@ -1,17 +1,34 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useFeatures } from "../lib/features";
 import { ApiError } from "../lib/api";
 import { LogoFull } from "../components/Logo";
 import { PasswordField } from "../components/PasswordField";
 
 export default function SignIn() {
-  const { signin } = useAuth();
+  const { signin, continueAsGuest } = useAuth();
+  const { guestMode } = useFeatures();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
+
+  async function onGuest() {
+    setError(null);
+    setGuestBusy(true);
+    try {
+      await continueAsGuest();
+      // Guests see the privacy statement like everyone else.
+      navigate("/privacy");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    } finally {
+      setGuestBusy(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -74,6 +91,18 @@ export default function SignIn() {
         <button className="btn btn-primary btn-block" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
+
+        {guestMode && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-block"
+            style={{ marginTop: 10 }}
+            onClick={onGuest}
+            disabled={guestBusy}
+          >
+            {guestBusy ? "Setting things up…" : "Continue as guest"}
+          </button>
+        )}
 
         <p
           style={{
