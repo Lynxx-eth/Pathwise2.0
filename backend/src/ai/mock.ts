@@ -5,6 +5,7 @@ import type {
   AIResult,
   ChatMessage,
   ExtractedTopic,
+  ImageInput,
   MaterialVerdict,
   QuizQuestion,
   TokenUsage,
@@ -128,6 +129,31 @@ export class MockAIProvider implements AIProvider {
     // Never a direct answer — always a guiding question.
     return wrap(
       `${probe}What do you already know${focus} that might point you toward the answer? What would happen if you tried the simplest case first?`
+    );
+  }
+
+  async transcribeImage(
+    courseName: string,
+    image: ImageInput
+  ): Promise<AIResult<string>> {
+    // No vision without a real provider — produce deterministic pseudo-notes
+    // so the full image path (upload -> transcribe -> screen -> topics) is
+    // exercisable in development. Varies with the bytes so two different
+    // images don't merge into identical topics.
+    const seed = image.data.length % 5;
+    const themes = [
+      ["Study Notes Overview", "Definitions and Terms", "Worked Example"],
+      ["Lecture Summary", "Key Formula Sheet", "Practice Checklist"],
+      ["Diagram Walkthrough", "Process Steps", "Common Mistakes"],
+      ["Chapter Highlights", "Important Dates", "Review Questions"],
+      ["Whiteboard Snapshot", "Core Argument", "Supporting Evidence"],
+    ][seed];
+    const lines = themes.map(
+      (t, i) =>
+        `${i + 1}. ${t}\n- Main idea of ${t.toLowerCase()} for ${courseName}\n- Detail worth remembering about ${t.toLowerCase()}`
+    );
+    return wrap(
+      `Mock transcription (${image.mimeType}, ${image.data.length} bytes)\n${lines.join("\n")}`
     );
   }
 

@@ -118,7 +118,7 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | GET  | `/api/courses/:id` | ✔ | Knowledge map + per-topic mastery + materials |
 | PATCH | `/api/courses/:id` | ✔ | Rename / re-icon |
 | DELETE | `/api/courses/:id` | ✔ | Delete a course and everything derived from it |
-| POST | `/api/courses/:id/uploads` | ✔ | Upload material; parse, moderate, expand the map |
+| POST | `/api/courses/:id/uploads` | ✔ | Upload material (PDF/DOCX/PPTX or PNG/JPG/WebP image); parse or vision-transcribe, moderate, expand the map |
 | DELETE | `/api/courses/:id/uploads/:uploadId` | ✔ | Remove one material |
 
 ### Quiz (Step 5)

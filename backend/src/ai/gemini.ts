@@ -10,6 +10,7 @@ import type {
   AIResult,
   ChatMessage,
   ExtractedTopic,
+  ImageInput,
   MaterialVerdict,
   QuizQuestion,
   TokenUsage,
@@ -20,6 +21,7 @@ import {
   generateQuizPrompt,
   SOCRATIC_FALLBACK,
   socraticSystemPrompt,
+  transcribeImagePrompt,
   validateQuestions,
   validateTopics,
   validateVerdict,
@@ -51,7 +53,13 @@ export class GeminiProvider implements AIProvider {
 
   private async generate(
     system: string,
-    contents: { role: "user" | "model"; parts: { text: string }[] }[],
+    contents: {
+      role: "user" | "model";
+      parts: (
+        | { text: string }
+        | { inlineData: { mimeType: string; data: string } }
+      )[];
+    }[],
     jsonMode: boolean
   ): Promise<{ text: string; usage: TokenUsage }> {
     const url = `${API_BASE}/models/${this.model}:generateContent`;
@@ -166,5 +174,31 @@ export class GeminiProvider implements AIProvider {
       user
     );
     return { value: validateVerdict(parsed), usage };
+  }
+
+  async transcribeImage(
+    courseName: string,
+    image: ImageInput
+  ): Promise<AIResult<string>> {
+    const { system, user } = transcribeImagePrompt(courseName);
+    const { text, usage } = await this.generate(
+      system,
+      [
+        {
+          role: "user",
+          parts: [
+            { text: user },
+            {
+              inlineData: {
+                mimeType: image.mimeType,
+                data: image.data.toString("base64"),
+              },
+            },
+          ],
+        },
+      ],
+      false
+    );
+    return { value: text.trim(), usage };
   }
 }

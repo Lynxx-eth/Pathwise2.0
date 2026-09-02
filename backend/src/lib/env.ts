@@ -30,6 +30,9 @@ const schema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GEMINI_API_KEY: z.string().default(""),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  // Image uploads travel to the vision provider base64-encoded in one request
+  // (2.0 Phase 5) — cap them tighter than documents.
+  MAX_IMAGE_MB: z.coerce.number().min(1).max(20).default(8),
   FREE_COURSE_CAP: z.coerce.number().default(3),
 
   // Email — used for the forgot-password flow. Mock (default, free, logs to

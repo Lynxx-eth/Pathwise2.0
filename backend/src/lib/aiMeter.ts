@@ -14,6 +14,7 @@ import type {
   AIResult,
   ChatMessage,
   ExtractedTopic,
+  ImageInput,
   MaterialVerdict,
   QuizQuestion,
   TokenUsage,
@@ -23,7 +24,9 @@ export type AIOperation =
   | "extract_topics"
   | "generate_quiz"
   | "socratic_reply"
-  | "moderate";
+  | "moderate"
+  // 2.0 Phase 5: image -> text, feeding the same pipeline as documents.
+  | "transcribe_image";
 
 /** Raised when a user has burned through their daily AI budget. */
 export class AIBudgetExceededError extends Error {
@@ -175,6 +178,16 @@ export function classifyMaterial(
 ): Promise<MaterialVerdict> {
   return meter("moderate", userId, () =>
     ai.classifyMaterial(courseName, materialText)
+  );
+}
+
+export function transcribeImage(
+  userId: string | null,
+  courseName: string,
+  image: ImageInput
+): Promise<string> {
+  return meter("transcribe_image", userId, () =>
+    ai.transcribeImage(courseName, image)
   );
 }
 

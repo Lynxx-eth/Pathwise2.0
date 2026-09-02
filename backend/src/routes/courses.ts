@@ -2,8 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { storage } from "../lib/storage.js";
-import { kindFor } from "../lib/parse.js";
-import { matchesSignature } from "../lib/fileSignature.js";
+import { imageKindFor, kindFor } from "../lib/parse.js";
+import {
+  matchesImageSignature,
+  matchesSignature,
+} from "../lib/fileSignature.js";
 import { processUpload } from "../lib/knowledge.js";
 import { entitlementsFor } from "../lib/billing.js";
 import {
@@ -204,12 +207,15 @@ export default async function courseRoutes(app: FastifyInstance) {
       const data = await req.file();
       if (!data) return reply.code(400).send({ error: "No file uploaded" });
 
-      // Accept only PDF/DOCX/PPTX (by mimetype or extension)...
+      // Accept PDF/DOCX/PPTX documents, or an image of study material
+      // (photo of notes, whiteboard, slide — 2.0 Phase 5)...
       const kind = kindFor(data.filename, data.mimetype);
-      if (!kind) {
-        return reply
-          .code(415)
-          .send({ error: "Only PDF, DOCX, and PPTX files are supported." });
+      const imageKind = kind ? null : imageKindFor(data.filename, data.mimetype);
+      if (!kind && !imageKind) {
+        return reply.code(415).send({
+          error:
+            "Only PDF, DOCX, PPTX, or an image (PNG, JPG, WebP) of your notes is supported.",
+        });
       }
 
       const buffer = await data.toBuffer();
@@ -217,9 +223,21 @@ export default async function courseRoutes(app: FastifyInstance) {
       // ...and only when the bytes agree. Extension and mimetype are both
       // client-chosen; the leading bytes are the one part a disguised file
       // can't fake while still parsing (security review item).
-      if (!matchesSignature(kind, buffer)) {
+      const bytesAgree = kind
+        ? matchesSignature(kind, buffer)
+        : matchesImageSignature(imageKind!, buffer);
+      if (!bytesAgree) {
+        const label = kind ? kind.toUpperCase() : "image";
         return reply.code(415).send({
-          error: `That file doesn't look like a real ${kind.toUpperCase()} — it may be renamed or corrupted.`,
+          error: `That file doesn't look like a real ${label} — it may be renamed or corrupted.`,
+        });
+      }
+
+      // Images travel base64-encoded to the vision provider in one request,
+      // so they get a tighter cap than documents.
+      if (imageKind && buffer.byteLength > env.MAX_IMAGE_MB * 1024 * 1024) {
+        return reply.code(413).send({
+          error: `Images are capped at ${env.MAX_IMAGE_MB}MB — try a smaller photo.`,
         });
       }
 
@@ -265,6 +283,12 @@ export default async function courseRoutes(app: FastifyInstance) {
         result = await processUpload(upload.id, req.user.sub);
       } catch (err) {
         if (err instanceof AIBudgetExceededError) {
+          // Don't leave the row stuck in "parsing" — the student can retry
+          // tomorrow, and the card should say why it stopped.
+          await prisma.upload.update({
+            where: { id: upload.id },
+            data: { status: "failed", error: err.message },
+          }).catch(() => {});
           return reply.code(429).send({ error: err.message });
         }
         throw err;

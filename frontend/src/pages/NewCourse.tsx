@@ -20,7 +20,9 @@ interface QueuedFile {
 
 const MAX_FILES = 10;
 const MAX_BYTES = 25 * 1024 * 1024;
-const ACCEPTED = [".pdf", ".docx", ".pptx"];
+// Documents parse server-side; images are transcribed by the vision provider
+// (2.0 Phase 5) — a photo of notes or a whiteboard works too.
+const ACCEPTED = [".pdf", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".webp"];
 
 function extensionOk(name: string): boolean {
   return ACCEPTED.some((ext) => name.toLowerCase().endsWith(ext));
@@ -48,7 +50,8 @@ export default function NewCourse() {
         incoming.push({
           file,
           status: "failed",
-          message: "Only PDF, DOCX and PPTX files are supported.",
+          message:
+            "Only PDF, DOCX, PPTX or an image (PNG, JPG, WebP) is supported.",
         });
         continue;
       }
@@ -87,7 +90,7 @@ export default function NewCourse() {
     }
     const uploadable = files.filter((f) => f.status === "queued");
     if (uploadable.length === 0) {
-      setError("Add at least one PDF, DOCX or PPTX file.");
+      setError("Add at least one file — a PDF, DOCX, PPTX, or a photo of your notes.");
       return;
     }
 
@@ -213,10 +216,11 @@ export default function NewCourse() {
           <UploadIcon cls="icon-lg" />
         </div>
         <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 14.5 }}>
-          Drop your syllabus &amp; slides here
+          Drop your syllabus, slides or note photos here
         </div>
         <div style={{ color: "var(--ink-soft)", fontSize: 13, marginBottom: 18 }}>
-          PDF, PPTX, or DOCX — up to {MAX_FILES} files, 25 MB each
+          PDF, PPTX, DOCX or images (PNG, JPG, WebP) — up to {MAX_FILES} files,
+          25 MB each
         </div>
         <button
           className="btn btn-ghost"
@@ -229,7 +233,7 @@ export default function NewCourse() {
           ref={inputRef}
           type="file"
           multiple
-          accept=".pdf,.docx,.pptx"
+          accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
           style={{ display: "none" }}
           onChange={(e) => addFiles(e.target.files)}
           aria-label="Choose course material files"

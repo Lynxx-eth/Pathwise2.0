@@ -236,13 +236,15 @@ export default function CourseView() {
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,.docx,.pptx"
+            accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
             style={{ display: "none" }}
             onChange={(e) => addMaterial(e.target.files?.[0])}
             aria-label="Add another course material file"
           />
           <p style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
-            Adding material expands your existing map — it doesn't start over.
+            PDF, DOCX, PPTX — or a photo of your notes, a whiteboard or a
+            slide. Adding material expands your existing map — it doesn't
+            start over.
           </p>
         </div>
       </Collapsible>

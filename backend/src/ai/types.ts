@@ -35,6 +35,13 @@ export interface ChatMessage {
   content: string;
 }
 
+/** An uploaded image handed to a vision-capable provider (2.0 Phase 5). */
+export interface ImageInput {
+  data: Buffer;
+  // "image/png" | "image/jpeg" | "image/webp"
+  mimeType: string;
+}
+
 /** Step 15: verdict on whether uploaded material belongs in a study app. */
 export interface MaterialVerdict {
   // "clean" — course material. "off_topic" — not study material at all.
@@ -75,4 +82,17 @@ export interface AIProvider {
     courseName: string,
     materialText: string
   ): Promise<AIResult<MaterialVerdict>>;
+
+  /**
+   * PATHWISE 2.0 Phase 5: turn a photo/screenshot of study material (notes,
+   * whiteboard, textbook page, slide, diagram) into clean structured text.
+   * The result feeds the SAME text pipeline as documents — screening, topic
+   * extraction, the knowledge map — so downstream code never knows the
+   * material arrived as pixels. Returns "" when nothing educational is
+   * legible in the image.
+   */
+  transcribeImage(
+    courseName: string,
+    image: ImageInput
+  ): Promise<AIResult<string>>;
 }

@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { itemsToLines } from "./pdfLines.js";
-import { kindFor } from "./parse.js";
+import { imageKindFor, kindFor } from "./parse.js";
 
 /** A pdfjs-shaped text item at baseline y. */
 function item(str: string, y: number, hasEOL = false) {
@@ -130,4 +130,19 @@ test("the extension is honoured when the browser sends a vague mimetype", () => 
   // Browsers routinely send application/octet-stream for .docx.
   assert.equal(kindFor("essay.docx", "application/octet-stream"), "docx");
   assert.equal(kindFor("DECK.PPTX", "application/octet-stream"), "pptx");
+});
+
+// --- Image kinds (PATHWISE 2.0 Phase 5) -------------------------------------
+
+test("images resolve to their kind by mimetype or extension", () => {
+  assert.equal(imageKindFor("notes.png", "image/png"), "png");
+  assert.equal(imageKindFor("board.jpeg", ""), "jpg");
+  assert.equal(imageKindFor("photo.JPG", "application/octet-stream"), "jpg");
+  assert.equal(imageKindFor("scan.webp", "image/webp"), "webp");
+});
+
+test("documents and junk are not image kinds", () => {
+  assert.equal(imageKindFor("syllabus.pdf", "application/pdf"), null);
+  assert.equal(imageKindFor("notes.txt", "text/plain"), null);
+  assert.equal(imageKindFor("clip.mp4", "video/mp4"), null);
 });

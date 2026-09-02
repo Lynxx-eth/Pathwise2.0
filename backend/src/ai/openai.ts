@@ -8,6 +8,7 @@ import type {
   AIResult,
   ChatMessage,
   ExtractedTopic,
+  ImageInput,
   MaterialVerdict,
   QuizQuestion,
   TokenUsage,
@@ -18,6 +19,7 @@ import {
   generateQuizPrompt,
   SOCRATIC_FALLBACK,
   socraticSystemPrompt,
+  transcribeImagePrompt,
   validateQuestions,
   validateTopics,
   validateVerdict,
@@ -118,5 +120,32 @@ export class OpenAIProvider implements AIProvider {
       user
     );
     return { value: validateVerdict(parsed), usage };
+  }
+
+  async transcribeImage(
+    courseName: string,
+    image: ImageInput
+  ): Promise<AIResult<string>> {
+    const { system, user } = transcribeImagePrompt(courseName);
+    const res = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: user },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${image.mimeType};base64,${image.data.toString("base64")}`,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const value = (res.choices[0]?.message?.content ?? "").trim();
+    return { value, usage: this.usageOf(res) };
   }
 }

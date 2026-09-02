@@ -147,6 +147,30 @@ export function socraticSystemPrompt(
 /** What the tutor says when a provider returns nothing usable. */
 export const SOCRATIC_FALLBACK = "What part feels least clear right now?";
 
+// --- Image transcription (2.0 Phase 5) --------------------------------------
+
+export function transcribeImagePrompt(courseName: string): {
+  system: string;
+  user: string;
+} {
+  const system =
+    "You convert one photo or screenshot of study material (handwritten or " +
+    "typed notes, a whiteboard, a textbook page, a slide, a diagram or chart) " +
+    "into clean plain text for a study app. Rules: (1) Transcribe the actual " +
+    "content — headings, bullets, equations, labels — preserving the line " +
+    "structure; bullets become lines. (2) For a diagram or chart, describe " +
+    "factually what it shows in a few lines (parts, relationships, axes) — " +
+    "no interpretation beyond what is drawn. (3) Mark text you cannot read " +
+    "as [illegible] rather than guessing. (4) Output the transcription only " +
+    "— no preamble, no commentary, no markdown fences. (5) If the image " +
+    "contains no educational content at all, output nothing. " +
+    UNTRUSTED_INPUT_RULE;
+  const user =
+    `The image is study material for the course "${courseName}". ` +
+    "Transcribe it now.";
+  return { system, user };
+}
+
 // --- Material screening (Step 15) ------------------------------------------
 
 export function classifyMaterialPrompt(

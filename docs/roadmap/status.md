@@ -13,6 +13,17 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 5 (execution order) — Multimodal ingestion, image slice: done.**
+  PNG/JPG/WebP uploads are accepted next to documents, validated by magic
+  bytes, capped at `MAX_IMAGE_MB` (8), and transcribed to structured text by
+  the provider's new `transcribeImage` capability (vision on OpenAI/Gemini,
+  deterministic pseudo-notes on mock; metered as `transcribe_image`). The
+  transcription feeds the SAME screening → topics → map pipeline as
+  documents. Video is deliberately deferred until async processing exists —
+  see decision 0003. E2e in `scripts/smoke-image.mjs`. While building this,
+  a pre-existing exposure surfaced: a malformed PDF could pin the upload
+  request in pdfjs indefinitely — document parsing is now bounded by a 60s
+  timeout (clean failure; the full cure remains the async upload worker).
 - **Phase 3 — Gemini provider: done.** `AI_PROVIDER=gemini` +
   `GEMINI_API_KEY` selects a new REST-based provider (no SDK dependency).
   Prompts and response validators were extracted to `src/ai/prompts.ts`,

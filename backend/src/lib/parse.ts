@@ -15,6 +15,29 @@ export { itemsToLines } from "./pdfLines.js";
 
 export type ParseKind = "pdf" | "docx" | "pptx";
 
+// Image uploads (PATHWISE 2.0 Phase 5). Images don't parse locally — a
+// vision-capable AI provider transcribes them into text, which then flows
+// through the same screening/topic pipeline as documents.
+export type ImageKind = "png" | "jpg" | "webp";
+
+export const IMAGE_MIME: Record<ImageKind, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  webp: "image/webp",
+};
+
+export function imageKindFor(
+  filename: string,
+  mimeType: string
+): ImageKind | null {
+  const ext = extname(filename).toLowerCase();
+  if (mimeType === "image/png" || ext === ".png") return "png";
+  if (mimeType === "image/jpeg" || ext === ".jpg" || ext === ".jpeg")
+    return "jpg";
+  if (mimeType === "image/webp" || ext === ".webp") return "webp";
+  return null;
+}
+
 export function kindFor(filename: string, mimeType: string): ParseKind | null {
   const ext = extname(filename).toLowerCase();
   if (mimeType === "application/pdf" || ext === ".pdf") return "pdf";
