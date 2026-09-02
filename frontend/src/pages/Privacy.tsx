@@ -24,7 +24,7 @@ const points = [
 ];
 
 export default function Privacy() {
-  const { acceptPrivacy } = useAuth();
+  const { acceptPrivacy, user } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +32,9 @@ export default function Privacy() {
     setBusy(true);
     try {
       await acceptPrivacy();
-      navigate("/courses");
+      // New learners flow into the onboarding wizard (Phase 2); anyone who
+      // already finished (or skipped) it goes straight to their courses.
+      navigate(user?.onboarded ? "/courses" : "/onboarding");
     } finally {
       setBusy(false);
     }

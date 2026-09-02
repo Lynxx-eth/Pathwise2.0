@@ -55,6 +55,8 @@ function publicUser(
     bestStreak: number;
     isGuest: boolean;
     guestExpiresAt: Date | null;
+    // Present when the caller included the learner profile (Phase 2).
+    learnerProfile?: { onboardedAt: Date | null } | null;
   },
   isPremium = false
 ) {
@@ -73,6 +75,8 @@ function publicUser(
     isGuest: u.isGuest,
     // What the guest banner counts down; null for real accounts.
     guestDaysLeft: u.isGuest ? guestDaysLeft(u.guestExpiresAt, new Date()) : null,
+    // Whether the onboarding wizard has been finished or skipped (Phase 2).
+    onboarded: Boolean(u.learnerProfile?.onboardedAt),
   };
 }
 
@@ -191,6 +195,7 @@ export default async function authRoutes(app: FastifyInstance) {
           notifyEmail: true,
           tosAcceptedVersion: env.TOS_VERSION,
         },
+        include: { learnerProfile: { select: { onboardedAt: true } } },
       });
 
       if (referralCode) {
@@ -216,7 +221,10 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { subscription: true },
+      include: {
+        subscription: true,
+        learnerProfile: { select: { onboardedAt: true } },
+      },
     });
     if (!user) {
       return reply.code(401).send({ error: "Invalid email or password." });
@@ -252,7 +260,10 @@ export default async function authRoutes(app: FastifyInstance) {
   app.get("/api/auth/me", { preHandler: [app.authenticate] }, async (req, reply) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user.sub },
-      include: { subscription: true },
+      include: {
+        subscription: true,
+        learnerProfile: { select: { onboardedAt: true } },
+      },
     });
     if (!user || user.deletedAt) {
       return reply.code(404).send({ error: "User not found" });
@@ -273,7 +284,10 @@ export default async function authRoutes(app: FastifyInstance) {
           privacyAcceptedAt: new Date(),
           tosAcceptedVersion: env.TOS_VERSION,
         },
-        include: { subscription: true },
+        include: {
+          subscription: true,
+          learnerProfile: { select: { onboardedAt: true } },
+        },
       });
       await track(user.id, "privacy_accepted", { tosVersion: env.TOS_VERSION });
       return reply.send({

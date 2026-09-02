@@ -415,6 +415,20 @@ export default function Profile() {
         {saving ? "Saving…" : "Save changes"}
       </button>
 
+      {/* Learning profile (PATHWISE 2.0 Phase 2) — the onboarding answers,
+          editable any time. */}
+      <div className="card" style={{ marginBottom: 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontSize: 14.5, marginBottom: 4 }}>Learning profile</h2>
+          <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>
+            What you study and how you like to learn — used to personalize Pathwise.
+          </p>
+        </div>
+        <Link to="/onboarding" className="btn btn-ghost" style={{ flexShrink: 0 }}>
+          Edit
+        </Link>
+      </div>
+
       {/* Companion + garden */}
       <div className="card" style={{ marginBottom: 22 }}>
         <h2 style={{ fontSize: 14.5, marginBottom: 14 }}>

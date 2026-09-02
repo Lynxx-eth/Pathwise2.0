@@ -107,6 +107,8 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | POST | `/api/auth/accept-privacy` | ✔ | Record one-time privacy + ToS acceptance |
 | POST | `/api/auth/forgot-password` | — | Request a reset link (generic response either way) |
 | POST | `/api/auth/reset-password` | — | Complete a reset |
+| GET  | `/api/onboarding` | ✔ | Learner profile + option catalogs (Phase 2) |
+| PUT  | `/api/onboarding` | ✔ | Save learner profile; `complete: true` finishes the wizard |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |

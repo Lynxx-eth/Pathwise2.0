@@ -78,6 +78,7 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   courses        Course[]
+  learnerProfile LearnerProfile?
   subscription   Subscription?
   masteries      TopicMastery[]
   quizSessions   QuizSession[]
@@ -93,6 +94,37 @@ model User {
   @@index([deletedAt])
   @@index([purgeAfter])
   @@index([isGuest, guestExpiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Learner profile (PATHWISE 2.0 Phase 2)
+// ---------------------------------------------------------------------------
+
+// Personalization signals collected at onboarding and editable any time.
+// These feed recommendations, community suggestions and study-buddy matching
+// in later phases — matching reads THIS, never a user's private files.
+// List fields are JSON string arrays (SQLite has no native arrays).
+model LearnerProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  field         String?   // e.g. "Computer Science"
+  // "high_school" | "undergraduate" | "graduate" | "professional" | "self_taught"
+  academicLevel String?
+  subjectsJson  String    @default("[]") // current courses/subjects
+  topicsJson    String    @default("[]") // topics of interest
+  // Keys from ONBOARDING_CATALOG.contentPrefs, e.g. "short_explanations".
+  contentPrefsJson String @default("[]")
+  communityInterestsJson String @default("[]")
+  // "solo" | "buddy" | "group" | "mixed"
+  studyStyle    String?
+  // Study-partner preferences, e.g. {"similarLevel":true,"availability":"evenings"}.
+  buddyPrefsJson String   @default("{}")
+
+  // Set when the wizard finishes (or is skipped) — gates showing it again.
+  onboardedAt   DateTime?
+  updatedAt     DateTime  @updatedAt
 }
 
 // ---------------------------------------------------------------------------

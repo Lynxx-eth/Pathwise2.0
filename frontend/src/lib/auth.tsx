@@ -34,6 +34,8 @@ export interface User {
   // Guest mode (PATHWISE 2.0 Phase 1).
   isGuest: boolean;
   guestDaysLeft: number | null;
+  // Whether the onboarding wizard was finished or skipped (Phase 2).
+  onboarded: boolean;
 }
 
 interface AuthResponse {

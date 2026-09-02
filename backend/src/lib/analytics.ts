@@ -12,6 +12,8 @@ export type EventName =
   // Guest mode (PATHWISE 2.0 Phase 1): sampling the product, then converting.
   | "guest_started"
   | "guest_claimed"
+  // Personalized onboarding (PATHWISE 2.0 Phase 2).
+  | "onboarding_completed"
   | "privacy_accepted"
   | "course_created"
   | "upload_started"

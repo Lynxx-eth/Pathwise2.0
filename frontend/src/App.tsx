@@ -18,6 +18,7 @@ import Socratic from "./pages/Socratic";
 import SocraticChat from "./pages/SocraticChat";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import Onboarding from "./pages/Onboarding";
 import Game from "./pages/Game";
 import Shop from "./pages/Shop";
 
@@ -85,6 +86,9 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy" element={<PrivacyGate />} />
+
+      {/* First-run wizard, also the learning-profile editor (Phase 2). */}
+      <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
 
       <Route path="/courses" element={<Protected><Courses /></Protected>} />
       <Route path="/courses/new" element={<Protected><NewCourse /></Protected>} />
