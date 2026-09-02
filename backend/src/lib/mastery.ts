@@ -12,6 +12,8 @@ import {
   type MasteryState,
   type TopicWithMastery,
 } from "./masteryModel.js";
+// Generic defensive JSON-list parser (shared with onboarding).
+import { parseStoredList } from "./onboardingModel.js";
 
 // Re-exported so callers have one import for "mastery things".
 export {
@@ -182,6 +184,13 @@ export async function topicsWithMastery(
       lastReviewedAt: m?.lastReviewedAt ?? null,
       dueAt: m?.dueAt ?? null,
       due: isDue(m?.dueAt ?? null, now),
+      // Knowledge Layer 2.0: concept structure for quiz grounding and the
+      // course detail view.
+      difficulty: t.difficulty,
+      misconceptions: parseStoredList(t.misconceptionsJson),
+      objectives: parseStoredList(t.objectivesJson),
+      prerequisites: parseStoredList(t.prerequisitesJson),
+      sourceRef: t.sourceRef,
     };
   });
 }

@@ -30,6 +30,12 @@ interface Topic {
   mastery: number;
   due: boolean;
   attempted: boolean;
+  // Knowledge Layer 2.0 concept structure (Phase 6).
+  difficulty: number | null;
+  objectives: string[];
+  misconceptions: string[];
+  prerequisites: string[];
+  sourceRef: string | null;
 }
 
 interface Upload {
@@ -55,6 +61,49 @@ function emphasisLabel(weight: number): string {
   if (weight >= 0.75) return "High emphasis";
   if (weight >= 0.5) return "Medium";
   return "Light";
+}
+
+function difficultyLabel(d: number): string {
+  if (d < 0.34) return "Intro";
+  if (d < 0.67) return "Intermediate";
+  return "Advanced";
+}
+
+/** True when the topic carries any Knowledge Layer detail worth expanding. */
+function hasConceptDetail(t: Topic): boolean {
+  return (
+    t.objectives.length > 0 ||
+    t.misconceptions.length > 0 ||
+    t.prerequisites.length > 0 ||
+    t.sourceRef !== null
+  );
+}
+
+/** Expandable concept detail under a topic row (Knowledge Layer 2.0). */
+function ConceptDetail({ t }: { t: Topic }) {
+  return (
+    <div style={{ fontSize: 12, color: "var(--ink-soft)", display: "flex", flexDirection: "column", gap: 6, paddingTop: 8 }}>
+      {t.objectives.length > 0 && (
+        <div>
+          <strong>You'll be able to:</strong>{" "}
+          {t.objectives.join(" · ")}
+        </div>
+      )}
+      {t.misconceptions.length > 0 && (
+        <div>
+          <strong>Watch out for:</strong> {t.misconceptions.join(" · ")}
+        </div>
+      )}
+      {t.prerequisites.length > 0 && (
+        <div>
+          <strong>Builds on:</strong> {t.prerequisites.join(", ")}
+        </div>
+      )}
+      {t.sourceRef && (
+        <div style={{ color: "var(--ink-faint)" }}>From {t.sourceRef}</div>
+      )}
+    </div>
+  );
 }
 
 function masteryDotColor(t: Topic): string {
@@ -265,14 +314,24 @@ export default function CourseView() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {course.topics.map((t) => (
-            <div key={t.id} className="topic-row">
+            <div key={t.id} className="topic-row" style={{ flexWrap: "wrap" }}>
               <span
                 className="heat-dot"
                 style={{ background: masteryDotColor(t) }}
                 aria-hidden="true"
               />
               <div className="t-main">
-                <div className="t-name">{t.name}</div>
+                <div className="t-name">
+                  {t.name}
+                  {t.difficulty !== null && (
+                    <span
+                      className="pill pill-muted"
+                      style={{ marginLeft: 8, fontSize: 10.5 }}
+                    >
+                      {difficultyLabel(t.difficulty)}
+                    </span>
+                  )}
+                </div>
                 {t.summary && (
                   <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>
                     {t.summary}
@@ -295,6 +354,13 @@ export default function CourseView() {
                   Quiz
                 </button>
               </div>
+              {hasConceptDetail(t) && (
+                <div style={{ flexBasis: "100%" }}>
+                  <Collapsible title="Details">
+                    <ConceptDetail t={t} />
+                  </Collapsible>
+                </div>
+              )}
             </div>
           ))}
         </div>

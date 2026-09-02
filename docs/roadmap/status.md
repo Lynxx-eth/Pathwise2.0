@@ -13,6 +13,16 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 6 (execution order) — Knowledge Layer 2.0: done.** Topic grew into
+  a concept: difficulty, parent/child (schema-ready), learning objectives,
+  documented misconceptions, prerequisites (by name, merge-safe) and a source
+  reference ("file — section"), all extracted from the material itself and
+  enriched — never clobbered — as more uploads arrive. Quiz generation now
+  builds distractors from the course's own misconceptions and pitches to
+  difficulty. `lib/knowledgeLayer.ts` is the retrieval seam downstream
+  features use (`getConceptContext` feeds Socratic 3.0 next); pure shaping in
+  `lib/knowledgeLayerModel.ts` (unit-tested). Course view shows the concept
+  detail. E2e in `scripts/smoke-knowledge.mjs`.
 - **Phase 5 (execution order) — Multimodal ingestion, image slice: done.**
   PNG/JPG/WebP uploads are accepted next to documents, validated by magic
   bytes, capped at `MAX_IMAGE_MB` (8), and transcribed to structured text by

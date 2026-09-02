@@ -52,6 +52,29 @@ function reinforce(existing: number, incoming: number): number {
   return Math.min(1, Math.max(existing, incoming) + 0.12);
 }
 
+// Knowledge Layer 2.0 list merge: keep what's known, add what's new, stay
+// bounded. Case-insensitive so "Cell membranes" doesn't duplicate
+// "cell membranes" across uploads.
+function mergeList(existingJson: string, incoming: string[], cap: number): string {
+  let existing: string[] = [];
+  try {
+    const parsed = JSON.parse(existingJson);
+    if (Array.isArray(parsed)) {
+      existing = parsed.filter((x): x is string => typeof x === "string");
+    }
+  } catch {
+    // Corrupt stored value reads as empty.
+  }
+  const seen = new Set(existing.map((s) => s.toLowerCase()));
+  for (const item of incoming) {
+    if (seen.has(item.toLowerCase())) continue;
+    seen.add(item.toLowerCase());
+    existing.push(item);
+    if (existing.length >= cap) break;
+  }
+  return JSON.stringify(existing.slice(0, cap));
+}
+
 export interface ProcessResult {
   status: "processed" | "failed" | "rejected";
   error?: string;
@@ -170,12 +193,30 @@ export async function processUpload(
   for (const t of extracted) {
     const key = normalizeName(t.name);
     const match = byName.get(key);
+    // Where this concept came from (Knowledge Layer 2.0 source grounding).
+    const sourceRef = t.sourceHint
+      ? `${upload.filename} — ${t.sourceHint}`
+      : upload.filename;
     if (match) {
       await prisma.topic.update({
         where: { id: match.id },
         data: {
           weight: reinforce(match.weight, t.weight),
           summary: match.summary || t.summary,
+          // Enrich, never clobber: new material fills gaps and extends lists.
+          difficulty: match.difficulty ?? t.difficulty ?? null,
+          objectivesJson: mergeList(match.objectivesJson, t.objectives ?? [], 6),
+          misconceptionsJson: mergeList(
+            match.misconceptionsJson,
+            t.misconceptions ?? [],
+            5
+          ),
+          prerequisitesJson: mergeList(
+            match.prerequisitesJson,
+            t.prerequisites ?? [],
+            5
+          ),
+          sourceRef: match.sourceRef ?? sourceRef,
         },
       });
     } else {
@@ -185,6 +226,11 @@ export async function processUpload(
           name: t.name,
           summary: t.summary,
           weight: t.weight,
+          difficulty: t.difficulty ?? null,
+          objectivesJson: JSON.stringify(t.objectives ?? []),
+          misconceptionsJson: JSON.stringify(t.misconceptions ?? []),
+          prerequisitesJson: JSON.stringify(t.prerequisites ?? []),
+          sourceRef,
         },
       });
       byName.set(key, created);

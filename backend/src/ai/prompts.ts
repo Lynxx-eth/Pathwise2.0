@@ -6,6 +6,7 @@ import type {
   ExtractedTopic,
   MaterialVerdict,
   QuizQuestion,
+  QuizTopicInput,
 } from "./types.js";
 
 // Uploaded material is untrusted input: a syllabus could contain "ignore your
@@ -39,17 +40,46 @@ export function extractTopicsPrompt(
     "material itself — if you cannot find real topics, return an empty list " +
     "rather than inventing generic categories like 'Core Concepts' or " +
     "'Key Definitions'. " +
+    "For each topic also provide, ONLY when the material supports it: " +
+    "difficulty 0..1 (how advanced the material treats it); 1-3 objectives " +
+    '(short "the student can …" statements grounded in the material); up to ' +
+    "2 misconceptions (wrong ideas the material warns about or corrects); " +
+    "prerequisites (names of OTHER topics from your list that should come " +
+    "first); sourceHint (the heading/section/week it came from, a few words). " +
+    "Omit any of these rather than inventing them. " +
     'Respond as JSON: {"topics": [{"name": string, "summary": string, ' +
-    '"weight": number between 0 and 1}]}. ' +
+    '"weight": number 0-1, "difficulty"?: number 0-1, "objectives"?: string[], ' +
+    '"misconceptions"?: string[], "prerequisites"?: string[], ' +
+    '"sourceHint"?: string}]}. ' +
     UNTRUSTED_INPUT_RULE;
   // Cap input size to control cost.
   const user = `Course: ${courseName}\n\nMaterial:\n${materialText.slice(0, 12000)}`;
   return { system, user };
 }
 
+/** Bound a model-supplied string list: strings only, trimmed, capped. */
+function boundList(
+  value: unknown,
+  maxItems: number,
+  maxLength: number
+): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const cleaned = item.replace(/\s+/g, " ").trim().slice(0, maxLength).trim();
+    if (cleaned.length === 0) continue;
+    out.push(cleaned);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
 /**
  * Validate + dedupe a model's topic list — models can ignore the merge rule,
- * and duplicate topics would double-count mastery downstream.
+ * and duplicate topics would double-count mastery downstream. Knowledge
+ * Layer 2.0 fields are bounded and optional; a self-referencing prerequisite
+ * is dropped.
  */
 export function validateTopics(parsed: {
   topics?: ExtractedTopic[];
@@ -62,10 +92,26 @@ export function validateTopics(parsed: {
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
+
+    const difficultyNum = Number(t.difficulty);
+    const sourceHint = String(t.sourceHint ?? "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
+
     value.push({
       name,
       summary: String(t.summary ?? "").slice(0, 300),
       weight: clamp01(Number(t.weight)),
+      ...(t.difficulty !== undefined && !Number.isNaN(difficultyNum)
+        ? { difficulty: clamp01(difficultyNum) }
+        : {}),
+      objectives: boundList(t.objectives, 4, 160),
+      misconceptions: boundList(t.misconceptions, 3, 200),
+      prerequisites: boundList(t.prerequisites, 4, 80).filter(
+        (p) => p.toLowerCase() !== key
+      ),
+      ...(sourceHint ? { sourceHint } : {}),
     });
     if (value.length >= 15) break; // hard ceiling regardless of model mood
   }
@@ -76,7 +122,7 @@ export function validateTopics(parsed: {
 
 export function generateQuizPrompt(
   courseName: string,
-  topics: { name: string; weight: number }[],
+  topics: QuizTopicInput[],
   count: number
 ): { system: string; user: string } {
   const system =
@@ -86,18 +132,27 @@ export function generateQuizPrompt(
     "answer. Quality bar: (1) distractors must be plausible to someone who " +
     "half-knows the topic — common misconceptions beat absurd options; a " +
     "student should not be able to eliminate any option without knowledge. " +
+    "When a topic lists known misconceptions, build distractors from THOSE " +
+    "first — they are the wrong ideas this course actually warns about. " +
     "(2) Options are similar in length and grammatical form, so the correct " +
     "one isn't the conspicuously longest. (3) No 'all/none of the above'. " +
     "(4) Randomise which position holds the correct answer across questions. " +
     "(5) The explanation teaches why the right answer is right AND why the " +
-    "most tempting distractor is wrong. " +
+    "most tempting distractor is wrong. (6) Match each question's depth to " +
+    "the topic's difficulty (0 = introductory recall, 1 = advanced reasoning). " +
     'Respond as JSON: {"questions": [{"topicName": string, "question": ' +
     'string, "options": [string, string, string, string], "correctIndex": number, ' +
     '"explanation": string}]}. ' +
     UNTRUSTED_INPUT_RULE;
-  const user = `Course: ${courseName}\nTopics (name: weight): ${topics
-    .map((t) => `${t.name}: ${t.weight}`)
-    .join(", ")}\nWrite ${count} questions.`;
+  const lines = topics.map((t) => {
+    const extras: string[] = [];
+    if (t.difficulty !== undefined) extras.push(`difficulty ${t.difficulty}`);
+    if (t.misconceptions && t.misconceptions.length > 0) {
+      extras.push(`misconceptions: ${t.misconceptions.join(" | ")}`);
+    }
+    return `- ${t.name} (weight ${t.weight}${extras.length ? "; " + extras.join("; ") : ""})`;
+  });
+  const user = `Course: ${courseName}\nTopics:\n${lines.join("\n")}\nWrite ${count} questions.`;
   return { system, user };
 }
 

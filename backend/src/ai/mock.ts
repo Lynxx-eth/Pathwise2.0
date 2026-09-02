@@ -8,6 +8,7 @@ import type {
   ImageInput,
   MaterialVerdict,
   QuizQuestion,
+  QuizTopicInput,
   TokenUsage,
 } from "./types.js";
 
@@ -71,6 +72,9 @@ export class MockAIProvider implements AIProvider {
           ];
 
     // Weight by (fake) repetition: earlier + more-frequent phrases weigh more.
+    // Knowledge Layer 2.0 fields are filled deterministically so the whole
+    // enriched pipeline (objectives, misconceptions, prerequisites, source
+    // refs) is exercisable in development.
     const topics = base.map((name, i) => {
       const occurrences =
         (materialText.match(new RegExp(escapeRegExp(name), "gi")) || []).length ||
@@ -80,6 +84,17 @@ export class MockAIProvider implements AIProvider {
         name,
         summary: `Key ideas around "${name}" as covered in ${courseName}.`,
         weight: Number(weight.toFixed(2)),
+        difficulty: Number(Math.min(1, 0.2 + i * 0.08).toFixed(2)),
+        objectives: [
+          `Explain ${name.toLowerCase()} in your own words`,
+          `Apply ${name.toLowerCase()} to a simple example`,
+        ],
+        misconceptions:
+          i % 2 === 0
+            ? [`A common mix-up: confusing ${name.toLowerCase()} with a related idea`]
+            : [],
+        prerequisites: i > 0 ? [base[i - 1]] : [],
+        sourceHint: `Section ${i + 1}`,
       };
     });
 
@@ -88,7 +103,7 @@ export class MockAIProvider implements AIProvider {
 
   async generateQuiz(
     courseName: string,
-    topics: { name: string; weight: number }[],
+    topics: QuizTopicInput[],
     count: number
   ): Promise<AIResult<QuizQuestion[]>> {
     const sorted = [...topics].sort((a, b) => b.weight - a.weight);

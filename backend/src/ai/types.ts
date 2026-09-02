@@ -20,6 +20,12 @@ export interface ExtractedTopic {
   name: string;
   summary: string;
   weight: number; // 0..1 emphasis
+  // --- Knowledge Layer 2.0 (Phase 6) — optional, all grounded in material.
+  difficulty?: number; // 0 (intro) .. 1 (advanced)
+  objectives?: string[]; // what the student should be able to DO
+  misconceptions?: string[]; // wrong ideas worth probing/distracting with
+  prerequisites?: string[]; // NAMES of other topics to learn first
+  sourceHint?: string; // where in the material, e.g. "Week 3"
 }
 
 export interface QuizQuestion {
@@ -28,6 +34,14 @@ export interface QuizQuestion {
   options: string[]; // multiple choice
   correctIndex: number;
   explanation: string;
+}
+
+/** What quiz generation knows about each topic (Knowledge Layer 2.0 enriched). */
+export interface QuizTopicInput {
+  name: string;
+  weight: number;
+  difficulty?: number;
+  misconceptions?: string[];
 }
 
 export interface ChatMessage {
@@ -62,7 +76,7 @@ export interface AIProvider {
   /** Step 5: generate practice questions weighted toward emphasized topics. */
   generateQuiz(
     courseName: string,
-    topics: { name: string; weight: number }[],
+    topics: QuizTopicInput[],
     count: number
   ): Promise<AIResult<QuizQuestion[]>>;
 

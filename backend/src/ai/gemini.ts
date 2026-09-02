@@ -13,6 +13,7 @@ import type {
   ImageInput,
   MaterialVerdict,
   QuizQuestion,
+  QuizTopicInput,
   TokenUsage,
 } from "./types.js";
 import {
@@ -135,7 +136,7 @@ export class GeminiProvider implements AIProvider {
 
   async generateQuiz(
     courseName: string,
-    topics: { name: string; weight: number }[],
+    topics: QuizTopicInput[],
     count: number
   ): Promise<AIResult<QuizQuestion[]>> {
     const { system, user } = generateQuizPrompt(courseName, topics, count);

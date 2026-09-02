@@ -180,6 +180,13 @@ export interface TopicWithMastery {
   lastReviewedAt: Date | null;
   dueAt: Date | null;
   due: boolean;
+  // Knowledge Layer 2.0 (Phase 6) — optional so pure-test fixtures stay
+  // small; topicsWithMastery fills them from the Topic row.
+  difficulty?: number | null;
+  misconceptions?: string[];
+  objectives?: string[];
+  prerequisites?: string[];
+  sourceRef?: string | null;
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
   ImageInput,
   MaterialVerdict,
   QuizQuestion,
+  QuizTopicInput,
   TokenUsage,
 } from "../ai/types.js";
 
@@ -152,7 +153,7 @@ export function extractTopics(
 export function generateQuiz(
   userId: string | null,
   courseName: string,
-  topics: { name: string; weight: number }[],
+  topics: QuizTopicInput[],
   count: number
 ): Promise<QuizQuestion[]> {
   return meter("generate_quiz", userId, () =>

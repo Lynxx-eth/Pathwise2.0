@@ -45,6 +45,39 @@ test("validateTopics caps the list at 15 and handles missing field", () => {
   assert.deepEqual(validateTopics({}), []);
 });
 
+test("validateTopics bounds Knowledge Layer fields and drops self-prerequisites", () => {
+  const [t] = validateTopics({
+    topics: [
+      {
+        name: "Photosynthesis",
+        summary: "s",
+        weight: 0.7,
+        difficulty: 3, // clamped
+        objectives: ["  Explain   light reactions ", "", 42 as unknown as string],
+        misconceptions: ["Plants don't respire", "m2", "m3", "m4 overflow"],
+        prerequisites: ["photosynthesis", "Cell Structure"], // self dropped
+        sourceHint: "  Week   4  ",
+      },
+    ],
+  });
+  assert.equal(t.difficulty, 1);
+  assert.deepEqual(t.objectives, ["Explain light reactions"]);
+  assert.equal(t.misconceptions?.length, 3); // capped at 3
+  assert.deepEqual(t.prerequisites, ["Cell Structure"]);
+  assert.equal(t.sourceHint, "Week 4");
+});
+
+test("validateTopics leaves Knowledge Layer fields empty when absent", () => {
+  const [t] = validateTopics({
+    topics: [{ name: "Plain Topic", summary: "s", weight: 0.5 }],
+  });
+  assert.equal(t.difficulty, undefined);
+  assert.deepEqual(t.objectives, []);
+  assert.deepEqual(t.misconceptions, []);
+  assert.deepEqual(t.prerequisites, []);
+  assert.equal(t.sourceHint, undefined);
+});
+
 test("validateQuestions drops malformed questions", () => {
   const good = {
     topicName: "T",

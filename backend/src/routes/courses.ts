@@ -139,6 +139,12 @@ export default async function courseRoutes(app: FastifyInstance) {
           mastery: Math.round(t.mastery * 100),
           due: t.attemptCount > 0 && t.due,
           attempted: t.attemptCount > 0,
+          // Knowledge Layer 2.0 concept structure (Phase 6).
+          difficulty: t.difficulty ?? null,
+          objectives: t.objectives ?? [],
+          misconceptions: t.misconceptions ?? [],
+          prerequisites: t.prerequisites ?? [],
+          sourceRef: t.sourceRef ?? null,
         })),
         uploads: course.uploads.map((u: Upload) => ({
           id: u.id,

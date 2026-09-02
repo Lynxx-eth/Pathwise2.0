@@ -196,6 +196,27 @@ model Topic {
   // Emphasis weight 0..1 — how heavily the material stresses this topic (Step 2).
   weight         Float     @default(0.5)
 
+  // --- Knowledge Layer 2.0 (PATHWISE 2.0 Phase 6) --------------------------
+  // Richer concept structure, extracted from the material itself. Every list
+  // is a JSON string array (SQLite has no arrays); all optional so topics
+  // created before this phase keep working untouched.
+  // How hard the material treats this topic, 0 (intro) .. 1 (advanced).
+  difficulty     Float?
+  // Optional parent concept within the same knowledge map.
+  parentId       String?
+  parent         Topic?    @relation("TopicChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Topic[]   @relation("TopicChildren")
+  // What a student should be able to DO once this topic is mastered.
+  objectivesJson String    @default("[]")
+  // Misconceptions the material warns about — feeds quiz distractors and
+  // Socratic probing.
+  misconceptionsJson String @default("[]")
+  // Names of topics that should be understood first (resolved by name within
+  // the course, so map merges don't dangle ids).
+  prerequisitesJson  String @default("[]")
+  // Where in the material this came from, e.g. "syllabus.pdf — Week 3".
+  sourceRef      String?
+
   createdAt      DateTime  @default(now())
 
   masteries      TopicMastery[]
@@ -203,6 +224,7 @@ model Topic {
   socraticSessions SocraticSession[]
 
   @@index([knowledgeMapId])
+  @@index([parentId])
 }
 
 // Per-user, per-topic mastery state (Step 4). Created here so quiz/Socratic

@@ -88,7 +88,16 @@ export async function buildQuizSession(
   const questions = await generateQuiz(
     userId,
     course.name,
-    allocation.map((a) => ({ name: a.topic.name, weight: a.topic.weight })),
+    allocation.map((a) => ({
+      name: a.topic.name,
+      weight: a.topic.weight,
+      // Knowledge Layer 2.0: the course's own documented misconceptions
+      // become the distractors; difficulty tunes the question's pitch.
+      ...(a.topic.difficulty != null ? { difficulty: a.topic.difficulty } : {}),
+      ...(a.topic.misconceptions && a.topic.misconceptions.length > 0
+        ? { misconceptions: a.topic.misconceptions }
+        : {}),
+    })),
     count
   );
   if (questions.length === 0) {
