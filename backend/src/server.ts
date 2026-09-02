@@ -21,6 +21,7 @@ import { email } from "./email/index.js";
 import { billing } from "./lib/billing.js";
 import { seedBadges } from "./lib/gamification.js";
 import { seedShopItems } from "./lib/garden.js";
+import { publicFeatures } from "./lib/features.js";
 
 const app = Fastify({ logger: true });
 
@@ -81,6 +82,13 @@ app.get("/api/health", async () => ({
   aiProvider: ai.name,
   emailProvider: email.name,
   billingProvider: billing.name,
+}));
+
+// Public app configuration: which optional features are on. Read by the
+// frontend at boot so hidden/frozen surfaces never render. Enforcement lives
+// in the route handlers themselves — this endpoint is informational.
+app.get("/api/config", async () => ({
+  features: publicFeatures(),
 }));
 
 // Reference data the app needs before it can gate anything: badge definitions

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { FeaturesProvider, useFeatures, type Features } from "./lib/features";
 import { ThemeProvider } from "./lib/theme";
 import { ToastProvider } from "./lib/toast";
 import SignIn from "./pages/SignIn";
@@ -47,6 +48,22 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Renders children only when a feature flag is on; otherwise sends the user
+// back to Courses. Waits for /api/config so a slow answer doesn't bounce
+// someone off a screen that's actually enabled.
+function FeatureGate({
+  flag,
+  children,
+}: {
+  flag: keyof Features;
+  children: React.ReactNode;
+}) {
+  const features = useFeatures();
+  if (!features.loaded) return <FullPageLoader />;
+  if (!features[flag]) return <Navigate to="/courses" replace />;
+  return <>{children}</>;
+}
+
 // Privacy screen: needs a user, but only before they've accepted.
 function PrivacyGate() {
   const { user, loading } = useAuth();
@@ -82,8 +99,10 @@ function AppRoutes() {
       <Route path="/progress/:id" element={<Protected><Dashboard /></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
-      <Route path="/game" element={<Protected><Game /></Protected>} />
-      <Route path="/shop" element={<Protected><Shop /></Protected>} />
+      {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean
+          future replacement by Wise Path. */}
+      <Route path="/game" element={<Protected><FeatureGate flag="leafMatch"><Game /></FeatureGate></Protected>} />
+      <Route path="/shop" element={<Protected><FeatureGate flag="leafMatch"><Shop /></FeatureGate></Protected>} />
       <Route path="/upgrade" element={<Protected><Upgrade /></Protected>} />
 
       <Route path="*" element={<Navigate to="/courses" replace />} />
@@ -94,13 +113,15 @@ function AppRoutes() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </ToastProvider>
-      </AuthProvider>
+      <FeaturesProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </FeaturesProvider>
     </ThemeProvider>
   );
 }

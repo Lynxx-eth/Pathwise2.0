@@ -4,6 +4,7 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "../lib/auth";
+import { useFeatures } from "../lib/features";
 import { api } from "../lib/api";
 import { LogoFull } from "./Logo";
 import {
@@ -134,6 +135,7 @@ function NotificationBell() {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { leafMatch } = useFeatures();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -239,9 +241,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <ChartIcon /> Progress
             </NavLink>
           )}
-          <NavLink to="/game" className={navClass}>
-            <GamepadIcon /> Sprout's Garden
-          </NavLink>
+          {leafMatch && (
+            <NavLink to="/game" className={navClass}>
+              <GamepadIcon /> Sprout's Garden
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-streak">
           <FlameIcon cls="icon-lg" style={{ color: "var(--accent)" }} />

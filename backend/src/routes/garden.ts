@@ -8,7 +8,16 @@ import {
   LEAF_MATCH_PAIRS,
 } from "../lib/garden.js";
 import { track } from "../lib/analytics.js";
+import { features } from "../lib/features.js";
 import type { InventoryItem, ShopItem } from "@prisma/client";
+
+// Phase 0 (PATHWISE 2.0): Leaf Match is frozen. Reads stay open — the
+// companion and existing balances remain visible — but the XP economy
+// (earning in the mini-game, spending in the shop) is refused server-side.
+const FROZEN_REPLY = {
+  error: "feature_disabled",
+  message: "Leaf Match is taking a break while we build what replaces it.",
+};
 
 const finishSchema = z.object({
   pairsFound: z.number().int().min(0).max(LEAF_MATCH_PAIRS),
@@ -68,6 +77,9 @@ export default async function gardenRoutes(app: FastifyInstance) {
       config: { rateLimit: { max: 20, timeWindow: "10 minutes" } },
     },
     async (req, reply) => {
+      if (!features.leafMatch) {
+        return reply.code(403).send(FROZEN_REPLY);
+      }
       const parsed = finishSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid input" });
@@ -133,6 +145,9 @@ export default async function gardenRoutes(app: FastifyInstance) {
     "/api/garden/shop/purchase",
     { preHandler: [app.authenticate] },
     async (req, reply) => {
+      if (!features.leafMatch) {
+        return reply.code(403).send(FROZEN_REPLY);
+      }
       const parsed = purchaseSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid input" });

@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useFeatures } from "../lib/features";
 import { useApi } from "../lib/useApi";
 import { useTheme, type ThemePreference } from "../lib/theme";
 import { Collapsible } from "../components/Collapsible";
@@ -75,6 +76,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 export default function Profile() {
   const { logout, refresh } = useAuth();
+  const { leafMatch } = useFeatures();
   const navigate = useNavigate();
   const { preference, setPreference } = useTheme();
   const { data, loading, error, reload } = useApi<ProfileResponse>("/api/profile");
@@ -426,19 +428,23 @@ export default function Profile() {
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               Growth from studying: <strong>{companion?.growth ?? 0}</strong>
             </div>
-            <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-              {progress.gardenXp} Garden XP to spend
-            </div>
+            {leafMatch && (
+              <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                {progress.gardenXp} Garden XP to spend
+              </div>
+            )}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link to="/game" className="btn btn-primary" style={{ flex: 1, minWidth: 150 }}>
-            <GamepadIcon cls="icon-sm" /> Play &amp; decorate
-          </Link>
-          <Link to="/shop" className="btn btn-ghost" style={{ flex: 1, minWidth: 150 }}>
-            <ShoppingBagIcon cls="icon-sm" /> Shop
-          </Link>
-        </div>
+        {leafMatch && (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link to="/game" className="btn btn-primary" style={{ flex: 1, minWidth: 150 }}>
+              <GamepadIcon cls="icon-sm" /> Play &amp; decorate
+            </Link>
+            <Link to="/shop" className="btn btn-ghost" style={{ flex: 1, minWidth: 150 }}>
+              <ShoppingBagIcon cls="icon-sm" /> Shop
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Rank-gated frames (Step 10 item 2) */}

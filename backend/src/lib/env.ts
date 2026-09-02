@@ -1,6 +1,18 @@
 // Central place to read and validate environment variables.
 import { z } from "zod";
 
+// Boolean env vars: z.coerce.boolean() would treat the string "false" as true
+// (any non-empty string is truthy), so flags are parsed from their string form.
+// Empty/unset falls back to the default.
+const envBool = (def: boolean) =>
+  z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : String(v).toLowerCase()),
+    z
+      .enum(["true", "false", "1", "0"])
+      .default(def ? "true" : "false")
+      .transform((s) => s === "true" || s === "1")
+  );
+
 const schema = z.object({
   DATABASE_URL: z.string().default("file:./dev.db"),
   JWT_SECRET: z.string().min(1),
@@ -55,7 +67,14 @@ const schema = z.object({
 
   // --- Content moderation (Step 15) ---------------------------------------
   // Uploaded material is checked before it becomes a knowledge map.
-  MODERATION_ENABLED: z.coerce.boolean().default(true),
+  MODERATION_ENABLED: envBool(true),
+
+  // --- Feature flags (PATHWISE 2.0) ---------------------------------------
+  // Enforced server-side; the frontend reads them from GET /api/config.
+  // Leaf Match is frozen (Phase 0): the mini-game and shop stay in the code
+  // for a clean future replacement by Wise Path, but earning/spending Garden
+  // XP is disabled and the UI entry points are hidden while the flag is off.
+  FEATURE_LEAF_MATCH: envBool(false),
 
   // Terms of Service version. Bump to re-prompt every user for acceptance.
   TOS_VERSION: z.string().default("2026-07-01"),
