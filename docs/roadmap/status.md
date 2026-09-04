@@ -13,6 +13,17 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 8 (execution order) — Communities: done.** Subject-tree
+  communities (roadmap's CS/Biology/Business tree plus obvious neighbours,
+  seeded idempotently at boot), join/leave, question/discussion/resource
+  posts, replies, "helpful" reactions, author takedown — all account-gated
+  server-side (guests get 403 + a claim-account nudge; the UI shows the
+  friendly version). Safety shipped with the surface, not after: per-route
+  rate limits, cheap spam screening (`lib/communityModel.ts`, unit-tested),
+  content reporting, and an ops moderation queue (`GET /api/ops/reports`,
+  resolve with remove/dismiss — removal soft-deletes, keeping the audit
+  trail). Frontend: Communities browse/join, community feed + composer,
+  thread view. E2e: `scripts/smoke-communities.mjs`.
 - **Phase 7 (execution order) — Socratic 3.0: done.** The tutor is grounded
   in the Knowledge Layer: each turn feeds the session topic's concept block
   (objectives, documented misconceptions, prerequisites, the student's

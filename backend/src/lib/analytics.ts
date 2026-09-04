@@ -49,7 +49,12 @@ export type EventName =
   | "referral_rewarded"
   // Retention
   | "session_start"
-  | "notification_sent";
+  | "notification_sent"
+  // Communities (PATHWISE 2.0 Phase 9)
+  | "community_joined"
+  | "community_post_created"
+  | "community_reply_created"
+  | "content_reported";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

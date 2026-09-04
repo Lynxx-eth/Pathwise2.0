@@ -16,12 +16,14 @@ import notificationRoutes from "./routes/notifications.js";
 import billingRoutes from "./routes/billing.js";
 import referralRoutes from "./routes/referrals.js";
 import feedbackRoutes from "./routes/feedback.js";
+import communityRoutes from "./routes/communities.js";
 import opsRoutes from "./routes/ops.js";
 import { ai } from "./ai/index.js";
 import { email } from "./email/index.js";
 import { billing } from "./lib/billing.js";
 import { seedBadges } from "./lib/gamification.js";
 import { seedShopItems } from "./lib/garden.js";
+import { seedCommunities } from "./lib/communities.js";
 import { publicFeatures } from "./lib/features.js";
 
 const app = Fastify({ logger: true });
@@ -77,6 +79,7 @@ await app.register(notificationRoutes);
 await app.register(billingRoutes);
 await app.register(referralRoutes);
 await app.register(feedbackRoutes);
+await app.register(communityRoutes);
 await app.register(opsRoutes);
 
 app.get("/api/health", async () => ({
@@ -98,6 +101,7 @@ app.get("/api/config", async () => ({
 try {
   await seedBadges();
   await seedShopItems();
+  await seedCommunities();
 } catch (err) {
   app.log.error({ err }, "Failed to seed reference data");
 }

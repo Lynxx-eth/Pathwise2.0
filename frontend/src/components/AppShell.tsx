@@ -17,6 +17,7 @@ import {
   GamepadIcon,
   ArrowLeftIcon,
   MailIcon,
+  UsersIcon,
 } from "./icons";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -241,6 +242,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <ChartIcon /> Progress
             </NavLink>
           )}
+          <NavLink to="/communities" className={navClass}>
+            <UsersIcon /> Communities
+          </NavLink>
           {leafMatch && (
             <NavLink to="/game" className={navClass}>
               <GamepadIcon /> Sprout's Garden

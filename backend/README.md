@@ -109,6 +109,16 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | POST | `/api/auth/reset-password` | — | Complete a reset |
 | GET  | `/api/onboarding` | ✔ | Learner profile + option catalogs (Phase 2) |
 | PUT  | `/api/onboarding` | ✔ | Save learner profile; `complete: true` finishes the wizard |
+| GET  | `/api/communities` | ✔ | Subject tree with membership (2.0 Phase 9; guests 403) |
+| POST | `/api/communities/:id/join` / `.../leave` | ✔ | Membership |
+| GET  | `/api/communities/:id` | ✔ | Community + paginated posts |
+| POST | `/api/communities/:id/posts` | ✔ | Create post (members, rate-limited, spam-screened) |
+| GET  | `/api/communities/posts/:postId` | ✔ | Thread with replies |
+| POST | `/api/communities/posts/:postId/replies` | ✔ | Reply (members) |
+| POST | `/api/communities/posts/:postId/react` | ✔ | Toggle "helpful" (same for `replies/:replyId/react`) |
+| DELETE | `/api/communities/posts/:postId` | ✔ | Author takedown (soft; same for replies) |
+| POST | `/api/communities/reports` | ✔ | Report content for review |
+| GET  | `/api/ops/reports` | cron secret | Moderation queue; resolve via `POST .../:id/resolve` |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |

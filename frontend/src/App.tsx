@@ -21,6 +21,9 @@ import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
 import Game from "./pages/Game";
 import Shop from "./pages/Shop";
+import Communities from "./pages/Communities";
+import CommunityView from "./pages/CommunityView";
+import PostView from "./pages/PostView";
 
 function FullPageLoader() {
   return (
@@ -105,6 +108,12 @@ function AppRoutes() {
 
       <Route path="/progress" element={<Protected><Dashboard /></Protected>} />
       <Route path="/progress/:id" element={<Protected><Dashboard /></Protected>} />
+
+      {/* Communities (PATHWISE 2.0 Phase 9). Account-gated server-side;
+          guests see a claim-your-account screen. */}
+      <Route path="/communities" element={<Protected><Communities /></Protected>} />
+      <Route path="/communities/:id" element={<Protected><CommunityView /></Protected>} />
+      <Route path="/communities/posts/:postId" element={<Protected><PostView /></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean

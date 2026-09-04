@@ -90,6 +90,11 @@ model User {
   aiUsage        AIUsage[]
   events         AnalyticsEvent[]
   feedback       Feedback[]
+  communityMemberships CommunityMember[]
+  communityPosts       CommunityPost[]
+  communityReplies     CommunityReply[]
+  communityReactions   CommunityReaction[]
+  contentReports       ContentReport[]
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -580,4 +585,121 @@ model Referral {
 
   @@index([referrerId])
   @@index([code])
+}
+
+// ---------------------------------------------------------------------------
+// Communities (PATHWISE 2.0 Phase 9 / execution item 8)
+// ---------------------------------------------------------------------------
+
+// Topic- and subject-centered communities. A subject tree (parent/children),
+// seeded at boot and extendable later. Learning relevance drives the graph —
+// this is not a generic social network, and it is entirely account-gated:
+// guests can neither join nor post (enforced server-side in the routes).
+model Community {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  parentId    String?
+  parent      Community?  @relation("CommunityTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Community[] @relation("CommunityTree")
+  createdAt   DateTime  @default(now())
+
+  members     CommunityMember[]
+  posts       CommunityPost[]
+
+  @@index([parentId])
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "member" | "moderator" — moderation tooling grows in the safety phase.
+  role        String    @default("member")
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
+  @@index([userId])
+}
+
+model CommunityPost {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  // "question" | "discussion" | "resource"
+  kind        String    @default("discussion")
+  title       String
+  body        String
+  // "visible" | "removed" — removal (author delete or moderation) keeps the
+  // row for the audit trail; queries filter on it.
+  status      String    @default("visible")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  replies     CommunityReply[]
+  reactions   CommunityReaction[]
+
+  @@index([communityId, status, createdAt])
+  @@index([authorId])
+}
+
+model CommunityReply {
+  id        String    @id @default(cuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  status    String    @default("visible")
+  createdAt DateTime  @default(now())
+
+  reactions CommunityReaction[]
+
+  @@index([postId, status, createdAt])
+  @@index([authorId])
+}
+
+// One row per (user, target, kind) — reacting again removes the row (toggle).
+// Exactly one of postId/replyId is set. SQLite treats NULLs as distinct in
+// unique indexes, so the two partial uniques coexist.
+model CommunityReaction {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      CommunityPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replyId   String?
+  reply     CommunityReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  // "helpful" for now; more kinds later without a schema change.
+  kind      String    @default("helpful")
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, postId, kind])
+  @@unique([userId, replyId, kind])
+  @@index([postId])
+  @@index([replyId])
+}
+
+// Abuse reporting (required before any social surface opens). Reports queue
+// for ops review; resolution either removes the target or dismisses.
+model ContentReport {
+  id         String    @id @default(cuid())
+  reporterId String
+  reporter   User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType String    // "post" | "reply"
+  targetId   String
+  // "spam" | "harassment" | "unsafe" | "off_topic" | "other"
+  reason     String
+  detail     String?
+  status     String    @default("open") // "open" | "actioned" | "dismissed"
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
 }
