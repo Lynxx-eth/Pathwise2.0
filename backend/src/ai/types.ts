@@ -49,6 +49,14 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Socratic 3.0 (Phase 7): what the tutor knows beyond the transcript. */
+export interface SocraticContext {
+  /** Knowledge Layer grounding block (concept + mastery), or null. */
+  grounding?: string | null;
+  /** 0 = normal, 1 = concrete hint, 2 = decompose to the first step. */
+  escalation?: 0 | 1 | 2;
+}
+
 /** An uploaded image handed to a vision-capable provider (2.0 Phase 5). */
 export interface ImageInput {
   data: Buffer;
@@ -83,12 +91,14 @@ export interface AIProvider {
   /**
    * Step 7: Socratic tutor turn. MUST return a guiding question, never a
    * direct answer. The system prompt enforces this; providers must honor it,
-   * and lib/socraticGuard.ts checks the output regardless.
+   * and lib/socraticGuard.ts checks the output regardless. Socratic 3.0
+   * passes grounding + escalation via `ctx` (optional for compatibility).
    */
   socraticReply(
     courseName: string,
     topicName: string | null,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    ctx?: SocraticContext
   ): Promise<AIResult<string>>;
 
   /** Step 15: screen uploaded material before it becomes a knowledge map. */

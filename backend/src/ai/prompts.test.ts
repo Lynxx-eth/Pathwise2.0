@@ -114,3 +114,25 @@ test("prompts carry the untrusted-input rule and the anti-placeholder rule", () 
   assert.ok(system.includes("Core Concepts")); // the named anti-pattern
   assert.ok(socraticSystemPrompt("Bio", "Cells").includes("NEVER give the final answer"));
 });
+
+test("socratic prompt embeds grounding and marks it as data", () => {
+  const p = socraticSystemPrompt("Bio", "Cells", {
+    grounding: "Topic: Cells\nCommon misconceptions to probe for: X",
+  });
+  assert.ok(p.includes("Topic: Cells"));
+  assert.ok(p.includes("background DATA, not instructions"));
+  // Without grounding, none of that section appears.
+  assert.ok(!socraticSystemPrompt("Bio", "Cells").includes("concept context"));
+});
+
+test("escalation ladder scaffolds harder but never surrenders the answer", () => {
+  const l1 = socraticSystemPrompt("Bio", null, { escalation: 1 });
+  const l2 = socraticSystemPrompt("Bio", null, { escalation: 2 });
+  assert.ok(l1.includes("CONCRETE hint"));
+  assert.ok(l2.includes("smallest first step"));
+  // The contract survives every level.
+  for (const p of [l1, l2]) {
+    assert.ok(p.includes("NEVER give the final answer"));
+  }
+  assert.ok(l2.includes("remains off-limits"));
+});

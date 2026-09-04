@@ -12,6 +12,7 @@ import type {
   MaterialVerdict,
   QuizQuestion,
   QuizTopicInput,
+  SocraticContext,
   TokenUsage,
 } from "./types.js";
 import {
@@ -98,12 +99,16 @@ export class OpenAIProvider implements AIProvider {
   async socraticReply(
     courseName: string,
     topicName: string | null,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    ctx?: SocraticContext
   ): Promise<AIResult<string>> {
     const res = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: "system", content: socraticSystemPrompt(courseName, topicName) },
+        {
+          role: "system",
+          content: socraticSystemPrompt(courseName, topicName, ctx),
+        },
         ...history.map((m) => ({ role: m.role, content: m.content }) as const),
       ],
     });

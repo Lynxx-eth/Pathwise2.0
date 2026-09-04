@@ -13,6 +13,16 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 7 (execution order) — Socratic 3.0: done.** The tutor is grounded
+  in the Knowledge Layer: each turn feeds the session topic's concept block
+  (objectives, documented misconceptions, prerequisites, the student's
+  mastery %) into the system prompt, marked as data-not-instructions. A pure
+  stuck-detector (`lib/socraticAdaptModel.ts`) drives an escalation ladder —
+  one stuck turn earns a concrete hint, two earn decomposition into the
+  smallest first step — while the anti-answer-leak guard still inspects
+  every reply at every level (the contract text survives all escalation
+  levels, unit-tested). Mock provider mirrors the ladder deterministically
+  so it's e2e-testable free: `scripts/smoke-socratic3.mjs`.
 - **Phase 6 (execution order) — Knowledge Layer 2.0: done.** Topic grew into
   a concept: difficulty, parent/child (schema-ready), learning objectives,
   documented misconceptions, prerequisites (by name, merge-safe) and a source

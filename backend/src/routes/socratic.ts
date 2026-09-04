@@ -21,9 +21,11 @@ import {
 } from "../lib/socraticGuard.js";
 import { recordSocraticDepth } from "../lib/mastery.js";
 import { isGuestUser } from "../lib/guests.js";
+import { getConceptContext } from "../lib/knowledgeLayer.js";
+import { stuckLevel } from "../lib/socraticAdaptModel.js";
 import { awardXp, grantBadge, XP } from "../lib/gamification.js";
 import { track } from "../lib/analytics.js";
-import type { ChatMessage } from "../ai/types.js";
+import type { ChatMessage, SocraticContext } from "../ai/types.js";
 import type { SocraticMessage } from "@prisma/client";
 
 const createSchema = z.object({
@@ -69,9 +71,10 @@ async function guardedReply(
   courseName: string,
   topicName: string | null,
   history: ChatMessage[],
-  turnIndex: number
+  turnIndex: number,
+  ctx?: SocraticContext
 ): Promise<{ text: string; guarded: boolean; reason: string | null }> {
-  const first = await socraticReply(userId, courseName, topicName, history);
+  const first = await socraticReply(userId, courseName, topicName, history, ctx);
   const firstVerdict = detectAnswerLeak(first);
   if (!firstVerdict.leaked) {
     return { text: first, guarded: false, reason: null };
@@ -83,7 +86,13 @@ async function guardedReply(
     { role: "assistant", content: first },
     { role: "user", content: retryNudge(firstVerdict.reason ?? "") },
   ];
-  const second = await socraticReply(userId, courseName, topicName, retryHistory);
+  const second = await socraticReply(
+    userId,
+    courseName,
+    topicName,
+    retryHistory,
+    ctx
+  );
   const secondVerdict = detectAnswerLeak(second);
   if (!secondVerdict.leaked) {
     return { text: second, guarded: true, reason: firstVerdict.reason };
@@ -246,6 +255,16 @@ export default async function socraticRoutes(app: FastifyInstance) {
         { role: "user" as const, content },
       ];
 
+      // Socratic 3.0: ground the tutor in the Knowledge Layer concept (with
+      // the student's mastery) and escalate scaffolding when they're stuck.
+      const grounding = session.topicId
+        ? await getConceptContext(req.user.sub, session.topicId)
+        : null;
+      const ctx: SocraticContext = {
+        grounding,
+        escalation: stuckLevel(history),
+      };
+
       let result;
       try {
         result = await guardedReply(
@@ -253,7 +272,8 @@ export default async function socraticRoutes(app: FastifyInstance) {
           session.course.name,
           session.topic?.name ?? null,
           history,
-          session.turnCount
+          session.turnCount,
+          ctx
         );
       } catch (err) {
         if (err instanceof AIBudgetExceededError) {

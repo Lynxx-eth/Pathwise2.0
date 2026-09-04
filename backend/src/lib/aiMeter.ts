@@ -18,6 +18,7 @@ import type {
   MaterialVerdict,
   QuizQuestion,
   QuizTopicInput,
+  SocraticContext,
   TokenUsage,
 } from "../ai/types.js";
 
@@ -165,10 +166,11 @@ export function socraticReply(
   userId: string | null,
   courseName: string,
   topicName: string | null,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  ctx?: SocraticContext
 ): Promise<string> {
   return meter("socratic_reply", userId, () =>
-    ai.socraticReply(courseName, topicName, history)
+    ai.socraticReply(courseName, topicName, history, ctx)
   );
 }
 

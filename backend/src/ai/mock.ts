@@ -9,6 +9,7 @@ import type {
   MaterialVerdict,
   QuizQuestion,
   QuizTopicInput,
+  SocraticContext,
   TokenUsage,
 } from "./types.js";
 
@@ -133,7 +134,8 @@ export class MockAIProvider implements AIProvider {
   async socraticReply(
     courseName: string,
     topicName: string | null,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    ctx?: SocraticContext
   ): Promise<AIResult<string>> {
     void courseName;
     const lastUser = [...history].reverse().find((m) => m.role === "user");
@@ -141,6 +143,18 @@ export class MockAIProvider implements AIProvider {
     const probe = lastUser?.content
       ? `You said: "${lastUser.content.slice(0, 80)}". `
       : "";
+    // Socratic 3.0: the mock mirrors the escalation ladder deterministically
+    // so the stuck-support path is testable without a real provider.
+    if (ctx?.escalation === 2) {
+      return wrap(
+        `${probe}Let's shrink this to the very first step${focus}: what is the one term in the question you could look up or restate right now?`
+      );
+    }
+    if (ctx?.escalation === 1) {
+      return wrap(
+        `${probe}Here's a more concrete nudge${focus}: focus on the part just before where you got lost. What changes at that point?`
+      );
+    }
     // Never a direct answer — always a guiding question.
     return wrap(
       `${probe}What do you already know${focus} that might point you toward the answer? What would happen if you tried the simplest case first?`

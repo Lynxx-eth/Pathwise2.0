@@ -14,6 +14,7 @@ import type {
   MaterialVerdict,
   QuizQuestion,
   QuizTopicInput,
+  SocraticContext,
   TokenUsage,
 } from "./types.js";
 import {
@@ -150,7 +151,8 @@ export class GeminiProvider implements AIProvider {
   async socraticReply(
     courseName: string,
     topicName: string | null,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    ctx?: SocraticContext
   ): Promise<AIResult<string>> {
     // Gemini's chat roles are "user" | "model"; ours are "user" | "assistant".
     const contents = history.map((m) => ({
@@ -158,7 +160,7 @@ export class GeminiProvider implements AIProvider {
       parts: [{ text: m.content }],
     }));
     const { text, usage } = await this.generate(
-      socraticSystemPrompt(courseName, topicName),
+      socraticSystemPrompt(courseName, topicName, ctx),
       contents,
       false
     );
