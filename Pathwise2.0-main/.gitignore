@@ -1,0 +1,28 @@
+# Node / React
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# Python / FastAPI
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.sqlite3
+*.db
+
+# Uploaded course materials (local storage)
+backend/uploads/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Compiled test output (npm test)
+backend/dist-test/
+
+# Local run logs
+*.log
