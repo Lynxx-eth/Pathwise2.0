@@ -28,6 +28,7 @@ import Buddies from "./pages/Buddies";
 import Messages from "./pages/Messages";
 import Videos from "./pages/Videos";
 import CreatorStudio from "./pages/CreatorStudio";
+import StudyRoom from "./pages/StudyRoom";
 
 function FullPageLoader() {
   return (
@@ -127,6 +128,8 @@ function AppRoutes() {
       <Route path="/videos" element={<Protected><Videos /></Protected>} />
       {/* Creator Studio (Phase 16) — dark until the server flag flips. */}
       <Route path="/creator" element={<Protected><FeatureGate flag="userVideoPosting"><CreatorStudio /></FeatureGate></Protected>} />
+      {/* Study buddy rooms (Phases 11/19 MVP). */}
+      <Route path="/rooms/:roomId" element={<Protected><StudyRoom /></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean

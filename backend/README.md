@@ -139,6 +139,12 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | GET/POST | `/api/ops/videos` | cron secret | Catalog management; `POST .../:id` publishes/hides |
 | * | `/api/creator/*` | ✔ + flag | Creator pipeline (2.0 Phase 16) — 404 unless `FEATURE_USER_VIDEO_POSTING=true` or internal cron-secret testing |
 | POST | `/api/ops/creator-videos/:id/moderate` | cron secret | Human moderation: approve flagged / reject |
+| POST | `/api/rooms` | ✔ | Open the study room for a buddy pair (2.0 Phases 11/19) |
+| GET  | `/api/rooms` / `/api/rooms/:id` | ✔ | My rooms / transcript (participants only) |
+| POST | `/api/rooms/:id/messages` | ✔ | Room chat (screened, rate-limited) |
+| POST | `/api/rooms/:id/topic` | ✔ | Set the shared focus topic (a name, never a file) |
+| POST | `/api/rooms/:id/help` | ✔ | Ask PATHWISE — facilitates only when BOTH have asked; leak-guarded |
+| POST | `/api/rooms/:id/end` | ✔ | End the session (either side) |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |

@@ -2,7 +2,7 @@
 // buddies from derived learning signals, send/accept requests. The privacy
 // rule is visible in the UI: matching never shares files, only overlap.
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
@@ -42,6 +42,7 @@ const LEVEL_LABEL: Record<string, string> = {
 
 export default function Buddies() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -226,11 +227,50 @@ export default function Buddies() {
           <h2 style={{ fontSize: 14.5, fontWeight: 700, margin: "16px 0 10px" }}>
             Your buddies
           </h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {buddies.map((b) => (
-              <span key={b.userId} className="pill pill-coral" title={`Buddies since ${new Date(b.since).toLocaleDateString()}`}>
-                {b.name}
-              </span>
+              <div
+                key={b.userId}
+                className="card"
+                style={{
+                  padding: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontWeight: 650, fontSize: 13.5 }}>
+                  {b.name}
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: 8 }}>
+                    since {new Date(b.since).toLocaleDateString()}
+                  </span>
+                </span>
+                <button
+                  className="btn btn-primary"
+                  style={{ fontSize: 12 }}
+                  disabled={busy === `room-${b.userId}`}
+                  onClick={async () => {
+                    setBusy(`room-${b.userId}`);
+                    try {
+                      const res = await api.post<{ room: { id: string } }>(
+                        "/api/rooms",
+                        { buddyId: b.userId }
+                      );
+                      navigate(`/rooms/${res.room.id}`);
+                    } catch (err) {
+                      setActionError(
+                        err instanceof ApiError ? err.message : "Couldn't open the room"
+                      );
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  Open study room
+                </button>
+              </div>
             ))}
           </div>
         </>

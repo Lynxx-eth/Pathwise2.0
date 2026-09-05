@@ -67,7 +67,10 @@ export type EventName =
   | "video_engaged"
   // Hidden creator infrastructure (PATHWISE 2.0 Phase 16)
   | "creator_video_uploaded"
-  | "creator_video_published";
+  | "creator_video_published"
+  // Study Buddy Rooms (PATHWISE 2.0 Phases 11/19)
+  | "study_room_opened"
+  | "study_room_facilitated";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

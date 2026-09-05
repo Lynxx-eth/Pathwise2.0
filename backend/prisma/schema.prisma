@@ -109,6 +109,9 @@ model User {
   creatorVideoComments  CreatorVideoComment[]
   creatorFollowers      CreatorFollow[] @relation("FollowedCreator")
   creatorFollowing      CreatorFollow[] @relation("FollowingUser")
+  studyRoomsA           StudyRoom[] @relation("StudyRoomA")
+  studyRoomsB           StudyRoom[] @relation("StudyRoomB")
+  studyRoomMessages     StudyRoomMessage[]
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -904,6 +907,46 @@ model CreatorFollow {
 
   @@unique([followerId, creatorId])
   @@index([creatorId])
+}
+
+// Study Buddy Rooms (PATHWISE 2.0 Phases 11/19 — collaborative study MVP).
+// One room per buddy pair (canonical aId < bId), reusable across sessions.
+// The PATHWISE facilitator only speaks when BOTH participants have an
+// active help request — it facilitates, never replaces the students, and
+// every facilitator reply passes the same anti-answer-leak guard as the
+// 1:1 tutor. Voice/whiteboard/group rooms are future phases.
+model StudyRoom {
+  id        String    @id @default(cuid())
+  aId       String
+  a         User      @relation("StudyRoomA", fields: [aId], references: [id], onDelete: Cascade)
+  bId       String
+  b         User      @relation("StudyRoomB", fields: [bId], references: [id], onDelete: Cascade)
+  // Focus topic by NAME (derived metadata — never a link into private files).
+  topicName String?
+  status    String    @default("active") // "active" | "ended"
+  // Help requests: facilitator fires only when both are recent.
+  helpAAt   DateTime?
+  helpBAt   DateTime?
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  messages  StudyRoomMessage[]
+
+  @@unique([aId, bId])
+}
+
+model StudyRoomMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      StudyRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  // Null sender = the PATHWISE facilitator.
+  senderId  String?
+  sender    User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  role      String   @default("user") // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
 }
 
 // Abuse reporting (required before any social surface opens). Reports queue

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { isGuestUser } from "../lib/guests.js";
 import { canSend, pairKey } from "../lib/dmModel.js";
+import { areBuddies } from "../lib/buddies.js";
 import { screenText } from "../lib/communityModel.js";
 import { deliver } from "../lib/notifications.js";
 import { track } from "../lib/analytics.js";
@@ -42,19 +43,6 @@ async function isBlockedEitherWay(x: string, y: string): Promise<boolean> {
   return Boolean(block);
 }
 
-async function areBuddies(x: string, y: string): Promise<boolean> {
-  const pair = await prisma.buddyRequest.findFirst({
-    where: {
-      status: "accepted",
-      OR: [
-        { fromId: x, toId: y },
-        { fromId: y, toId: x },
-      ],
-    },
-    select: { id: true },
-  });
-  return Boolean(pair);
-}
 
 export default async function dmRoutes(app: FastifyInstance) {
   // Conversation list: active + incoming requests, with unread counts.

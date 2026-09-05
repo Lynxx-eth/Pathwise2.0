@@ -13,6 +13,29 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 16 (execution order) — Collaborative Study, Study Buddy Rooms
+  MVP: done.** One room per buddy pair (canonical, revivable with its
+  transcript), buddies-only — outsiders and guests get 404s. Chat
+  (screened + rate-limited), a shared focus topic by NAME (derived
+  metadata, never a link into private files), and the PATHWISE
+  facilitator: it speaks ONLY when both participants have a fresh help
+  request (pure rule in `lib/roomModel.ts`, 10-minute window,
+  unit-tested), both requests are consumed by one intervention, and every
+  facilitator reply passes the same anti-answer-leak guard as the 1:1
+  tutor — it gets the pair explaining to each other, never does the
+  reasoning for them. Voice/whiteboard/group rooms stay future work.
+  Frontend: room page with polling chat + help button, opened from the
+  Buddies page. E2e: `scripts/smoke-rooms.mjs` (20 checks).
+- **Phase 14 (execution order) — Reliability pass: `npm run smoke`.**
+  `scripts/run-smokes.mjs` runs all 13 end-to-end suites (218 checks),
+  booting a FRESH server per suite so in-memory rate limits can't bleed
+  between them, including the creator suite in both flag modes. This is
+  the ROADMAP's "CI end-to-end job" item — point CI at
+  `npm run build && npm test && npm run smoke`.
+- **Still deferred, by the roadmap's own rules:** enabling
+  `FEATURE_USER_VIDEO_POSTING` (needs proven moderation with real users)
+  and Wise Path (gamification returns only after the learning + community
+  product is validated in beta).
 - **Phase 13 (execution order) — Hidden creator video infrastructure:
   done, and DARK.** The full user-video pipeline exists behind
   `FEATURE_USER_VIDEO_POSTING=false`: upload (MP4/WebM, magic-byte
