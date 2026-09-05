@@ -492,12 +492,19 @@ export default async function communityRoutes(app: FastifyInstance) {
           select: { title: true, body: true, status: true },
         });
         content = p ? `[${p.status}] ${p.title}\n${p.body.slice(0, 500)}` : null;
-      } else {
+      } else if (r.targetType === "reply") {
         const rep = await prisma.communityReply.findUnique({
           where: { id: r.targetId },
           select: { body: true, status: true },
         });
         content = rep ? `[${rep.status}] ${rep.body.slice(0, 500)}` : null;
+      } else if (r.targetType === "message") {
+        // Reported DMs (Phase 12) land in the same queue.
+        const dm = await prisma.directMessage.findUnique({
+          where: { id: r.targetId },
+          select: { body: true },
+        });
+        content = dm ? `[dm] ${dm.body.slice(0, 500)}` : null;
       }
       out.push({
         id: r.id,
@@ -533,10 +540,17 @@ export default async function communityRoutes(app: FastifyInstance) {
           where: { id: report.targetId },
           data: { status: "removed" },
         });
-      } else {
+      } else if (report.targetType === "reply") {
         await prisma.communityReply.updateMany({
           where: { id: report.targetId },
           data: { status: "removed" },
+        });
+      } else if (report.targetType === "message") {
+        // DMs have no status column; moderation blanks the body so the
+        // thread keeps its shape without keeping the content.
+        await prisma.directMessage.updateMany({
+          where: { id: report.targetId },
+          data: { body: "[removed by moderation]" },
         });
       }
     }

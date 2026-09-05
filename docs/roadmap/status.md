@@ -13,6 +13,18 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 10 (execution order) — Direct Messaging: done.** One conversation
+  per user pair (canonical order, unit-tested). Buddies talk immediately;
+  anyone else's first message is a message request the recipient accepts or
+  declines — a pending thread accepts nothing from the recipient until then,
+  and a declined one accepts nothing ever. Abuse controls ship with the
+  surface: block silences BOTH directions (existing threads and new
+  conversation attempts), per-conversation mute, report-a-message into the
+  same ops queue as community content (moderation blanks the body, keeping
+  thread shape), spam screening, and rate limits (starts 5/10min, messages
+  60/10min). Unread counts from per-user read state; reading marks read.
+  Guests 403 everywhere. Frontend: /messages with list + thread, request
+  banner, mute/block/report. E2e: `scripts/smoke-dms.mjs`.
 - **Phase 9 (execution order) — Study Buddy Matching: done.** Matching is
   computed from DERIVED signals only — the self-declared learner profile,
   topic NAMES from knowledge maps, and community membership — never files

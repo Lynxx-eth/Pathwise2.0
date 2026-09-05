@@ -58,7 +58,11 @@ export type EventName =
   // Study Buddy Matching (PATHWISE 2.0 Phase 10)
   | "buddy_discoverable_toggled"
   | "buddy_request_sent"
-  | "buddy_request_responded";
+  | "buddy_request_responded"
+  // Direct Messaging (PATHWISE 2.0 Phase 12)
+  | "dm_sent"
+  | "dm_request_responded"
+  | "dm_block_toggled";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

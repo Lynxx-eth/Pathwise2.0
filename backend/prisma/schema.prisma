@@ -97,6 +97,12 @@ model User {
   contentReports       ContentReport[]
   buddyRequestsSent     BuddyRequest[] @relation("BuddyRequestsSent")
   buddyRequestsReceived BuddyRequest[] @relation("BuddyRequestsReceived")
+  conversationsA        Conversation[] @relation("ConversationA")
+  conversationsB        Conversation[] @relation("ConversationB")
+  directMessages        DirectMessage[]
+  conversationStates    ConversationState[]
+  blocksMade            UserBlock[] @relation("BlocksMade")
+  blocksReceived        UserBlock[] @relation("BlocksReceived")
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -706,6 +712,71 @@ model BuddyRequest {
   @@unique([fromId, toId])
   @@index([toId, status])
   @@index([fromId, status])
+}
+
+// Direct Messaging (PATHWISE 2.0 Phase 12). One conversation per user pair,
+// stored canonically (aId < bId, enforced in code). A conversation between
+// buddies starts "active"; anyone else's first message creates a "pending"
+// message request the recipient accepts or declines. DMs require a real
+// account — guests are refused in the routes.
+model Conversation {
+  id            String   @id @default(cuid())
+  aId           String
+  a             User     @relation("ConversationA", fields: [aId], references: [id], onDelete: Cascade)
+  bId           String
+  b             User     @relation("ConversationB", fields: [bId], references: [id], onDelete: Cascade)
+  // "pending" (message request) | "active" | "declined"
+  status        String   @default("pending")
+  requesterId   String
+  createdAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+
+  messages      DirectMessage[]
+  states        ConversationState[]
+
+  @@unique([aId, bId])
+  @@index([aId, lastMessageAt])
+  @@index([bId, lastMessageAt])
+}
+
+model DirectMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// Per-user, per-conversation flags: mute and read position.
+model ConversationState {
+  id             String    @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mutedAt        DateTime?
+  lastReadAt     DateTime?
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+// A block silences both directions: neither side can message the other, and
+// the blocked user can't start a new conversation with the blocker.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 // Abuse reporting (required before any social surface opens). Reports queue

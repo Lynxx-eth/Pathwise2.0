@@ -125,6 +125,14 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | GET  | `/api/buddies/requests` | ✔ | Incoming + outgoing pending requests |
 | POST | `/api/buddies/requests/:id/respond` | ✔ | `{action: accept\|decline}` (recipient only) |
 | GET  | `/api/buddies` | ✔ | Accepted buddy pairs |
+| GET  | `/api/dms` | ✔ | Conversations + requests with unread counts (2.0 Phase 12) |
+| POST | `/api/dms` | ✔ | Start a conversation (buddies: active; others: message request) |
+| GET  | `/api/dms/:id` | ✔ | Thread (marks read) |
+| POST | `/api/dms/:id/messages` | ✔ | Send (rate-limited, spam-screened, block-aware) |
+| POST | `/api/dms/:id/respond` | ✔ | Accept/decline a message request (recipient only) |
+| POST | `/api/dms/:id/mute` | ✔ | Per-conversation mute |
+| POST | `/api/dms/block` | ✔ | Block/unblock a user (silences both directions) |
+| POST | `/api/dms/messages/:messageId/report` | ✔ | Report a DM into the ops queue |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |
