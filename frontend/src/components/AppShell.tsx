@@ -18,6 +18,7 @@ import {
   ArrowLeftIcon,
   MailIcon,
   UsersIcon,
+  UploadIcon,
 } from "./icons";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -136,7 +137,7 @@ function NotificationBell() {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { leafMatch } = useFeatures();
+  const { leafMatch, userVideoPosting } = useFeatures();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -254,6 +255,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/videos" className={navClass}>
             <SparklesIcon cls="icon" /> Videos
           </NavLink>
+          {userVideoPosting && (
+            <NavLink to="/creator" className={navClass}>
+              <UploadIcon cls="icon" /> Creator Studio
+            </NavLink>
+          )}
           {leafMatch && (
             <NavLink to="/game" className={navClass}>
               <GamepadIcon /> Sprout's Garden

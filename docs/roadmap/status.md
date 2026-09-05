@@ -13,6 +13,25 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 13 (execution order) — Hidden creator video infrastructure:
+  done, and DARK.** The full user-video pipeline exists behind
+  `FEATURE_USER_VIDEO_POSTING=false`: upload (MP4/WebM, magic-byte
+  validated, 25MB) → AI analysis through the existing provider abstraction
+  (screening → moderation lane; topic/subject extraction) → creator review
+  → publish. State machine in `lib/creatorModel.ts` (unit-tested): clean →
+  approved; thin/off-topic → flagged, publish refused (409) until a human
+  approves via `POST /api/ops/creator-videos/:id/moderate`; inappropriate →
+  rejected outright. While the flag is false every creator endpoint returns
+  404 to ordinary clients — even PUBLISHED content reaches nobody — and
+  internal testing runs via the CRON_SECRET header, exactly per the
+  roadmap. Prepared interaction infra: views with watch-time/completion,
+  like/save toggles, shares, comments, follows, and reports that land in
+  the shared ops queue (removal takes the video down). Frontend: Creator
+  Studio behind the same server-driven FeatureGate — invisible until the
+  server flips. Transcoding/thumbnails/transcription deferred to the
+  async-worker phase; schema carries their fields. E2e:
+  `scripts/smoke-creator.mjs` runs BOTH modes (flag off: 15 checks of
+  darkness + the internal pipeline; flag on: 16 checks of the public loop).
 - **Phase 12 (execution order) — Personalized Educational FYP: done.**
   `GET /api/fyp` ranks the curated catalog against the learner's full
   derived context: mastery gaps first (35% — this is a learning product,

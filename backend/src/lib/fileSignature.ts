@@ -36,6 +36,27 @@ export function matchesSignature(kind: ParseKind, buffer: Buffer): boolean {
   }
 }
 
+/** Video uploads (PATHWISE 2.0 Phase 16 — creator infrastructure). */
+export type VideoKind = "mp4" | "webm";
+
+export function matchesVideoSignature(kind: VideoKind, buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+
+  switch (kind) {
+    case "mp4":
+      // ISO BMFF: a size box then "ftyp" at offset 4.
+      return buffer.subarray(4, 8).toString("latin1") === "ftyp";
+    case "webm":
+      // Matroska/WebM EBML header.
+      return (
+        buffer[0] === 0x1a &&
+        buffer[1] === 0x45 &&
+        buffer[2] === 0xdf &&
+        buffer[3] === 0xa3
+      );
+  }
+}
+
 /** Same idea for image uploads (PATHWISE 2.0 Phase 5). */
 export function matchesImageSignature(kind: ImageKind, buffer: Buffer): boolean {
   if (buffer.length < 12) return false;

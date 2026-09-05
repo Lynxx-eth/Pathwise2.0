@@ -20,6 +20,7 @@ import communityRoutes from "./routes/communities.js";
 import buddyRoutes from "./routes/buddies.js";
 import dmRoutes from "./routes/dms.js";
 import videoRoutes from "./routes/videos.js";
+import creatorRoutes from "./routes/creator.js";
 import opsRoutes from "./routes/ops.js";
 import { ai } from "./ai/index.js";
 import { email } from "./email/index.js";
@@ -87,6 +88,7 @@ await app.register(communityRoutes);
 await app.register(buddyRoutes);
 await app.register(dmRoutes);
 await app.register(videoRoutes);
+await app.register(creatorRoutes);
 await app.register(opsRoutes);
 
 app.get("/api/health", async () => ({

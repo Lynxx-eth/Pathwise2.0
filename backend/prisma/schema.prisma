@@ -104,6 +104,11 @@ model User {
   blocksMade            UserBlock[] @relation("BlocksMade")
   blocksReceived        UserBlock[] @relation("BlocksReceived")
   videoEngagements      VideoEngagement[]
+  creatorVideos         CreatorVideo[]
+  creatorVideoEvents    CreatorVideoEvent[]
+  creatorVideoComments  CreatorVideoComment[]
+  creatorFollowers      CreatorFollow[] @relation("FollowedCreator")
+  creatorFollowing      CreatorFollow[] @relation("FollowingUser")
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -820,6 +825,85 @@ model VideoEngagement {
 
   @@index([userId, kind])
   @@index([videoId, kind])
+}
+
+// Hidden creator video infrastructure (PATHWISE 2.0 Phase 16). Built in
+// full, kept DARK: public posting and the public feed are unreachable while
+// FEATURE_USER_VIDEO_POSTING=false (enforced in routes/creator.ts; internal
+// testing goes through the CRON_SECRET header). Pipeline: upload →
+// AI analysis (screening + topic/subject extraction via the provider
+// abstraction) → creator review → publish. Transcoding/transcription are
+// deliberately deferred to the async-worker phase — fields exist for them.
+model CreatorVideo {
+  id           String   @id @default(cuid())
+  creatorId    String
+  creator      User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title        String
+  caption      String   @default("")
+  storagePath  String   // original upload; transcoded renditions come later
+  thumbnailUrl String?
+  durationSec  Int?
+  subject      String?
+  topicsJson   String   @default("[]")
+  transcript   String?
+  // "processing" | "pending_review" | "published" | "rejected"
+  status       String   @default("processing")
+  // "pending" | "approved" | "flagged" | "rejected"
+  moderationStatus String @default("pending")
+  // "private" | "public" — public requires an approved moderation pass.
+  visibility   String   @default("private")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  events       CreatorVideoEvent[]
+  comments     CreatorVideoComment[]
+
+  @@index([creatorId, status])
+  @@index([status, visibility, moderationStatus])
+}
+
+// Prepared interaction infrastructure: views (with watch time/completion),
+// likes, saves, shares, reports. One row per (user, video, kind) for the
+// toggles; view/share rows accumulate.
+model CreatorVideoEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId   String
+  video     CreatorVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  // "view" | "like" | "save" | "share" | "report"
+  kind      String
+  watchMs   Int?
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([videoId, kind])
+  @@index([userId, kind])
+}
+
+model CreatorVideoComment {
+  id        String   @id @default(cuid())
+  videoId   String
+  video     CreatorVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  status    String   @default("visible") // "visible" | "removed"
+  createdAt DateTime @default(now())
+
+  @@index([videoId, status, createdAt])
+}
+
+model CreatorFollow {
+  id         String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("FollowingUser", fields: [followerId], references: [id], onDelete: Cascade)
+  creatorId  String
+  creator    User     @relation("FollowedCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([followerId, creatorId])
+  @@index([creatorId])
 }
 
 // Abuse reporting (required before any social surface opens). Reports queue

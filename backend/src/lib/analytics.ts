@@ -64,7 +64,10 @@ export type EventName =
   | "dm_request_responded"
   | "dm_block_toggled"
   // Curated videos (PATHWISE 2.0 Phase 14)
-  | "video_engaged";
+  | "video_engaged"
+  // Hidden creator infrastructure (PATHWISE 2.0 Phase 16)
+  | "creator_video_uploaded"
+  | "creator_video_published";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

@@ -14,6 +14,8 @@ import { api } from "./api";
 export interface Features {
   leafMatch: boolean;
   guestMode: boolean;
+  /** Phase 16: creator studio stays invisible until the server says so. */
+  userVideoPosting: boolean;
 }
 
 const DEFAULT_FEATURES: Features = {
@@ -21,6 +23,7 @@ const DEFAULT_FEATURES: Features = {
   // Off until /api/config answers, so the button never shows against a
   // server that would refuse it.
   guestMode: false,
+  userVideoPosting: false,
 };
 
 interface FeaturesState extends Features {

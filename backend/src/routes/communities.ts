@@ -505,6 +505,15 @@ export default async function communityRoutes(app: FastifyInstance) {
           select: { body: true },
         });
         content = dm ? `[dm] ${dm.body.slice(0, 500)}` : null;
+      } else if (r.targetType === "creator_video") {
+        // Reported creator videos (Phase 16) too.
+        const cv = await prisma.creatorVideo.findUnique({
+          where: { id: r.targetId },
+          select: { title: true, caption: true, status: true },
+        });
+        content = cv
+          ? `[creator_video ${cv.status}] ${cv.title}\n${cv.caption.slice(0, 400)}`
+          : null;
       }
       out.push({
         id: r.id,
@@ -551,6 +560,15 @@ export default async function communityRoutes(app: FastifyInstance) {
         await prisma.directMessage.updateMany({
           where: { id: report.targetId },
           data: { body: "[removed by moderation]" },
+        });
+      } else if (report.targetType === "creator_video") {
+        await prisma.creatorVideo.updateMany({
+          where: { id: report.targetId },
+          data: {
+            status: "rejected",
+            moderationStatus: "rejected",
+            visibility: "private",
+          },
         });
       }
     }

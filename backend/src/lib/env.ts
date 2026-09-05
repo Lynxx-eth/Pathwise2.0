@@ -84,6 +84,11 @@ const schema = z.object({
   FEATURE_LEAF_MATCH: envBool(false),
   // Guest mode (Phase 1): try the core loop before creating an account.
   FEATURE_GUEST_MODE: envBool(true),
+  // Hidden creator infrastructure (Phase 16): the user-video pipeline is
+  // fully built but PUBLIC posting stays dark until moderation is proven.
+  // Ordinary clients cannot reach creator endpoints while this is false;
+  // internal testing goes through the CRON_SECRET header.
+  FEATURE_USER_VIDEO_POSTING: envBool(false),
 
   // --- Guest limits (PATHWISE 2.0 Phase 1) --------------------------------
   // All enforced server-side. Guests exist to sample the core loop, not to

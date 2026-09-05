@@ -10,6 +10,9 @@ export const features = {
   leafMatch: env.FEATURE_LEAF_MATCH,
   // Phase 1: try the core loop before creating an account.
   guestMode: env.FEATURE_GUEST_MODE,
+  // Phase 16: creator video pipeline exists, public posting stays dark
+  // until moderation is proven. Enforced in routes/creator.ts.
+  userVideoPosting: env.FEATURE_USER_VIDEO_POSTING,
 } as const;
 
 /** Shape returned by GET /api/config — safe to expose publicly. */

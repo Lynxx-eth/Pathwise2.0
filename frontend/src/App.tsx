@@ -27,6 +27,7 @@ import PostView from "./pages/PostView";
 import Buddies from "./pages/Buddies";
 import Messages from "./pages/Messages";
 import Videos from "./pages/Videos";
+import CreatorStudio from "./pages/CreatorStudio";
 
 function FullPageLoader() {
   return (
@@ -124,6 +125,8 @@ function AppRoutes() {
       <Route path="/messages/:conversationId" element={<Protected><Messages /></Protected>} />
       {/* Curated educational videos (PATHWISE 2.0 Phase 14). */}
       <Route path="/videos" element={<Protected><Videos /></Protected>} />
+      {/* Creator Studio (Phase 16) — dark until the server flag flips. */}
+      <Route path="/creator" element={<Protected><FeatureGate flag="userVideoPosting"><CreatorStudio /></FeatureGate></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean
