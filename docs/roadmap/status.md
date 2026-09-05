@@ -13,6 +13,19 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 9 (execution order) — Study Buddy Matching: done.** Matching is
+  computed from DERIVED signals only — the self-declared learner profile,
+  topic NAMES from knowledge maps, and community membership — never files
+  (the privacy rule is structural: `lib/matchModel.ts` can't see anything
+  else). Strictly opt-in in both directions via a `discoverable` flag in
+  buddy prefs (default OFF): hidden users see no matches, appear in none,
+  and can't be requested. Weighted scoring (topics 35%, subjects 20%,
+  communities 15%, level/style/availability 10% each) with human-readable
+  reasons; a violated similar-level preference penalizes. Request → accept
+  handshake creates the buddy pair later phases (rooms, DMs) build on, with
+  in-app notifications both ways. Frontend: /buddies page with the privacy
+  toggle, incoming requests, suggested matches. E2e:
+  `scripts/smoke-buddies.mjs`.
 - **Phase 8 (execution order) — Communities: done.** Subject-tree
   communities (roadmap's CS/Biology/Business tree plus obvious neighbours,
   seeded idempotently at boot), join/leave, question/discussion/resource

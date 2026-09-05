@@ -18,7 +18,12 @@ import { localDayKey } from "./gamification.js";
 import { isDue } from "./mastery.js";
 import { track } from "./analytics.js";
 
-export type NotificationKind = "streak_reminder" | "review_due" | "unlock";
+// "buddy": study-buddy requests/acceptances (PATHWISE 2.0 Phase 10).
+export type NotificationKind =
+  | "streak_reminder"
+  | "review_due"
+  | "unlock"
+  | "buddy";
 
 export interface Notification {
   kind: NotificationKind;

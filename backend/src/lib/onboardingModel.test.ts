@@ -61,16 +61,25 @@ test("buddy prefs coerce arbitrary shapes into a well-formed object", () => {
     similarLevel: false,
     sameSubjects: false,
     availability: null,
+    discoverable: false,
   });
   assert.deepEqual(
     normalizeBuddyPrefs({
       similarLevel: true,
       sameSubjects: "yes", // not a boolean true -> false
       availability: "evenings",
+      discoverable: true,
     }),
-    { similarLevel: true, sameSubjects: false, availability: "evenings" }
+    {
+      similarLevel: true,
+      sameSubjects: false,
+      availability: "evenings",
+      discoverable: true,
+    }
   );
   assert.equal(normalizeBuddyPrefs({ availability: "3am" }).availability, null);
+  // Privacy default: never discoverable unless explicitly true.
+  assert.equal(normalizeBuddyPrefs({ discoverable: "yes" }).discoverable, false);
 });
 
 test("stored lists parse defensively", () => {

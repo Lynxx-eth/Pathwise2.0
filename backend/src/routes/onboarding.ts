@@ -124,8 +124,24 @@ export default async function onboardingRoutes(app: FastifyInstance) {
           normalizeFreeList(d.communityInterests)
         );
       if (d.studyStyle !== undefined) data.studyStyle = d.studyStyle || null;
-      if (d.buddyPrefs !== undefined)
-        data.buddyPrefsJson = JSON.stringify(normalizeBuddyPrefs(d.buddyPrefs));
+      if (d.buddyPrefs !== undefined) {
+        // The wizard never sends `discoverable` (that's the /api/buddies
+        // privacy switch), so preserve the stored value — an onboarding
+        // save must not silently hide someone who opted in.
+        const existing = await prisma.learnerProfile.findUnique({
+          where: { userId: req.user.sub },
+          select: { buddyPrefsJson: true },
+        });
+        const stored = normalizeBuddyPrefs(
+          existing ? parseStoredObject(existing.buddyPrefsJson || "{}") : {}
+        );
+        data.buddyPrefsJson = JSON.stringify(
+          normalizeBuddyPrefs({
+            discoverable: stored.discoverable,
+            ...d.buddyPrefs,
+          })
+        );
+      }
       if (d.complete) data.onboardedAt = new Date();
 
       const profile = await prisma.learnerProfile.upsert({

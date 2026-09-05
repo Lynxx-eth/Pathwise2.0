@@ -17,6 +17,7 @@ import billingRoutes from "./routes/billing.js";
 import referralRoutes from "./routes/referrals.js";
 import feedbackRoutes from "./routes/feedback.js";
 import communityRoutes from "./routes/communities.js";
+import buddyRoutes from "./routes/buddies.js";
 import opsRoutes from "./routes/ops.js";
 import { ai } from "./ai/index.js";
 import { email } from "./email/index.js";
@@ -80,6 +81,7 @@ await app.register(billingRoutes);
 await app.register(referralRoutes);
 await app.register(feedbackRoutes);
 await app.register(communityRoutes);
+await app.register(buddyRoutes);
 await app.register(opsRoutes);
 
 app.get("/api/health", async () => ({

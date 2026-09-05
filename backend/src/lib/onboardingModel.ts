@@ -88,6 +88,9 @@ export interface BuddyPrefs {
   similarLevel: boolean;
   sameSubjects: boolean;
   availability: string | null;
+  // Study Buddy Matching (2.0 Phase 10): nobody is matchable until they
+  // explicitly opt in. Privacy default is OFF.
+  discoverable: boolean;
 }
 
 /** Coerce arbitrary stored/submitted JSON into a well-formed BuddyPrefs. */
@@ -101,6 +104,7 @@ export function normalizeBuddyPrefs(value: unknown): BuddyPrefs {
     similarLevel: v.similarLevel === true,
     sameSubjects: v.sameSubjects === true,
     availability,
+    discoverable: v.discoverable === true,
   };
 }
 

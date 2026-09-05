@@ -95,6 +95,8 @@ model User {
   communityReplies     CommunityReply[]
   communityReactions   CommunityReaction[]
   contentReports       ContentReport[]
+  buddyRequestsSent     BuddyRequest[] @relation("BuddyRequestsSent")
+  buddyRequestsReceived BuddyRequest[] @relation("BuddyRequestsReceived")
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -683,6 +685,27 @@ model CommunityReaction {
   @@unique([userId, replyId, kind])
   @@index([postId])
   @@index([replyId])
+}
+
+// Study Buddy Matching (PATHWISE 2.0 Phase 10). A pending request becomes a
+// buddy pair on acceptance — the pair is what Study Buddy Rooms and DMs
+// build on in later phases. One row per direction-agnostic pair attempt:
+// the (fromId, toId) unique blocks spam re-requests.
+model BuddyRequest {
+  id          String    @id @default(cuid())
+  fromId      String
+  from        User      @relation("BuddyRequestsSent", fields: [fromId], references: [id], onDelete: Cascade)
+  toId        String
+  to          User      @relation("BuddyRequestsReceived", fields: [toId], references: [id], onDelete: Cascade)
+  // "pending" | "accepted" | "declined"
+  status      String    @default("pending")
+  message     String?
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@unique([fromId, toId])
+  @@index([toId, status])
+  @@index([fromId, status])
 }
 
 // Abuse reporting (required before any social surface opens). Reports queue

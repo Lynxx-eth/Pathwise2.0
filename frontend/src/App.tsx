@@ -24,6 +24,7 @@ import Shop from "./pages/Shop";
 import Communities from "./pages/Communities";
 import CommunityView from "./pages/CommunityView";
 import PostView from "./pages/PostView";
+import Buddies from "./pages/Buddies";
 
 function FullPageLoader() {
   return (
@@ -114,6 +115,8 @@ function AppRoutes() {
       <Route path="/communities" element={<Protected><Communities /></Protected>} />
       <Route path="/communities/:id" element={<Protected><CommunityView /></Protected>} />
       <Route path="/communities/posts/:postId" element={<Protected><PostView /></Protected>} />
+      {/* Study Buddy Matching (PATHWISE 2.0 Phase 10). */}
+      <Route path="/buddies" element={<Protected><Buddies /></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean

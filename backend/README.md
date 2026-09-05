@@ -119,6 +119,12 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | DELETE | `/api/communities/posts/:postId` | ✔ | Author takedown (soft; same for replies) |
 | POST | `/api/communities/reports` | ✔ | Report content for review |
 | GET  | `/api/ops/reports` | cron secret | Moderation queue; resolve via `POST .../:id/resolve` |
+| GET  | `/api/buddies/matches` | ✔ | Suggested study buddies (2.0 Phase 10; opt-in both ways) |
+| POST | `/api/buddies/discoverable` | ✔ | `{on}` — the matching privacy switch (default off) |
+| POST | `/api/buddies/requests` | ✔ | Send a buddy request (both sides discoverable) |
+| GET  | `/api/buddies/requests` | ✔ | Incoming + outgoing pending requests |
+| POST | `/api/buddies/requests/:id/respond` | ✔ | `{action: accept\|decline}` (recipient only) |
+| GET  | `/api/buddies` | ✔ | Accepted buddy pairs |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |
