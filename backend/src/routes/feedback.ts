@@ -6,7 +6,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { env } from "../lib/env.js";
+import { opsAuthorized } from "../lib/opsAuth.js";
 
 const feedbackSchema = z.object({
   message: z.string().min(3).max(2000),
@@ -45,7 +45,7 @@ export default async function feedbackRoutes(app: FastifyInstance) {
 
   // Read side for whoever runs the beta. Same CRON_SECRET guard as ops.
   app.get("/api/ops/feedback", async (req, reply) => {
-    if (!env.CRON_SECRET || req.headers["x-cron-secret"] !== env.CRON_SECRET) {
+    if (!opsAuthorized(req.headers["x-cron-secret"])) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
     const rows = await prisma.feedback.findMany({

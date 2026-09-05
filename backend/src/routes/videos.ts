@@ -9,7 +9,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { env } from "../lib/env.js";
+import { opsAuthorized } from "../lib/opsAuth.js";
 import { isGuestUser } from "../lib/guests.js";
 import { rankedVideosFor } from "../lib/videos.js";
 import { buildFeed } from "../lib/fyp.js";
@@ -157,10 +157,7 @@ export default async function videoRoutes(app: FastifyInstance) {
   // --- Ops: catalog management. Same CRON_SECRET guard as the other ops
   // routes; there is deliberately no in-app admin surface yet.
   function authorized(req: { headers: Record<string, unknown> }): boolean {
-    return (
-      Boolean(env.CRON_SECRET) &&
-      req.headers["x-cron-secret"] === env.CRON_SECRET
-    );
+    return opsAuthorized(req.headers["x-cron-secret"]);
   }
 
   app.get("/api/ops/videos", async (req, reply) => {

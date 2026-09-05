@@ -16,7 +16,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { env } from "../lib/env.js";
+import { opsAuthorized } from "../lib/opsAuth.js";
 import { features } from "../lib/features.js";
 import { isGuestUser } from "../lib/guests.js";
 import { saveUpload, storage } from "../lib/storage.js";
@@ -38,10 +38,7 @@ const MAX_VIDEO_BYTES = 25 * 1024 * 1024; // matches the multipart limit
 
 /** Internal testing bypass: ops secret opens the dark feature. */
 function isInternalTester(req: FastifyRequest): boolean {
-  return (
-    Boolean(env.CRON_SECRET) &&
-    req.headers["x-cron-secret"] === env.CRON_SECRET
-  );
+  return opsAuthorized(req.headers["x-cron-secret"]);
 }
 
 function creatorSurfaceOpen(req: FastifyRequest): boolean {

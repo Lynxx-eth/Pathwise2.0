@@ -949,6 +949,28 @@ model StudyRoomMessage {
   @@index([roomId, createdAt])
 }
 
+// Built-in error tracking (beta readiness). Grouped by fingerprint and
+// deduped per day — one row per distinct failure per day, with a counter.
+// Read via GET /api/ops/errors; pruned after 30 days. A third-party
+// tracker can replace the transport later without moving capture points.
+model ErrorReport {
+  id          String   @id @default(cuid())
+  source      String   // "client" | "server"
+  message     String
+  stack       String?
+  url         String?
+  requestId   String?
+  userId      String?
+  fingerprint String
+  dayKey      String   // "YYYY-MM-DD"
+  count       Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([fingerprint, dayKey])
+  @@index([lastSeenAt])
+}
+
 // Abuse reporting (required before any social surface opens). Reports queue
 // for ops review; resolution either removes the target or dismisses.
 model ContentReport {

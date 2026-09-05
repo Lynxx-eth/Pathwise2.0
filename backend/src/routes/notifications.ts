@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { env } from "../lib/env.js";
+import { opsAuthorized } from "../lib/opsAuth.js";
 import {
   runNotificationSweep,
   purgeExpiredAccounts,
@@ -57,8 +58,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
   // since the caller is a scheduler (Render cron, GitHub Actions, cron-job.org)
   // and there's no user session involved.
   app.post("/api/cron/sweep", async (req, reply) => {
-    const provided = req.headers["x-cron-secret"];
-    if (!env.CRON_SECRET || provided !== env.CRON_SECRET) {
+    if (!opsAuthorized(req.headers["x-cron-secret"])) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
 

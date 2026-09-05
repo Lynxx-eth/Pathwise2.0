@@ -22,6 +22,7 @@ import dmRoutes from "./routes/dms.js";
 import videoRoutes from "./routes/videos.js";
 import creatorRoutes from "./routes/creator.js";
 import roomRoutes from "./routes/rooms.js";
+import errorRoutes from "./routes/errors.js";
 import opsRoutes from "./routes/ops.js";
 import { ai } from "./ai/index.js";
 import { email } from "./email/index.js";
@@ -30,6 +31,7 @@ import { seedBadges } from "./lib/gamification.js";
 import { seedShopItems } from "./lib/garden.js";
 import { seedCommunities } from "./lib/communities.js";
 import { seedVideos } from "./lib/videos.js";
+import { recordError } from "./lib/errors.js";
 import { publicFeatures } from "./lib/features.js";
 
 const app = Fastify({ logger: true });
@@ -71,6 +73,41 @@ app.addContentTypeParser(
 // Auth, upload, AI and billing routes below set their own stricter limits.
 await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
 
+// Built-in error tracking (beta readiness): every unexpected 5xx is
+// recorded (grouped + deduped in ErrorReport) and answered with a generic
+// message plus the request id, so a tester's screenshot is enough to find
+// the matching row in /api/ops/errors. Expected errors (4xx from
+// validation, rate limits, etc.) pass through untouched.
+app.setErrorHandler(async (raw: unknown, req, reply) => {
+  const err = (raw instanceof Error ? raw : new Error(String(raw))) as Error & {
+    statusCode?: number;
+    code?: string;
+  };
+  const statusCode =
+    typeof err.statusCode === "number" && err.statusCode >= 400
+      ? err.statusCode
+      : 500;
+  if (statusCode < 500) {
+    return reply.code(statusCode).send({
+      error: err.message,
+      ...(err.code ? { code: err.code } : {}),
+    });
+  }
+  req.log.error({ err, requestId: req.id }, "unhandled error");
+  await recordError({
+    source: "server",
+    message: err.message || "Unknown server error",
+    stack: err.stack ?? null,
+    url: `${req.method} ${req.routeOptions?.url ?? req.url}`,
+    requestId: String(req.id),
+    userId: (req as { user?: { sub?: string } }).user?.sub ?? null,
+  });
+  return reply.code(500).send({
+    error: "Something went wrong on our side.",
+    requestId: String(req.id),
+  });
+});
+
 await app.register(authPlugin);
 
 await app.register(authRoutes);
@@ -91,6 +128,7 @@ await app.register(dmRoutes);
 await app.register(videoRoutes);
 await app.register(creatorRoutes);
 await app.register(roomRoutes);
+await app.register(errorRoutes);
 await app.register(opsRoutes);
 
 app.get("/api/health", async () => ({

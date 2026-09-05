@@ -17,6 +17,7 @@ import { email } from "../email/index.js";
 import { localDayKey } from "./gamification.js";
 import { isDue } from "./mastery.js";
 import { track } from "./analytics.js";
+import { removeUserStoredFiles } from "./storageSweep.js";
 
 // "buddy": study-buddy requests/acceptances (PATHWISE 2.0 Phase 10).
 export type NotificationKind =
@@ -216,7 +217,8 @@ export async function runNotificationSweep(now = new Date()): Promise<SweepResul
 
 /**
  * Hard-delete users whose 30-day recovery window has expired (Step 10 item 3).
- * Cascades handle every child row.
+ * Sweeps their stored files first (GDPR — deletion means the files too, not
+ * just the rows); DB cascades handle every child row.
  */
 export async function purgeExpiredAccounts(now = new Date()): Promise<number> {
   const expired = await prisma.user.findMany({
@@ -224,6 +226,7 @@ export async function purgeExpiredAccounts(now = new Date()): Promise<number> {
     select: { id: true },
   });
   for (const user of expired) {
+    await removeUserStoredFiles(user.id);
     await prisma.user.delete({ where: { id: user.id } });
   }
   return expired.length;

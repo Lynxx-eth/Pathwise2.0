@@ -40,6 +40,7 @@ const SUITES = [
   { name: "videos", script: "smoke-videos.mjs" },
   { name: "fyp", script: "smoke-fyp.mjs" },
   { name: "rooms", script: "smoke-rooms.mjs" },
+  { name: "hardening", script: "smoke-hardening.mjs" },
   { name: "creator (flag off)", script: "smoke-creator.mjs" },
   {
     name: "creator (flag ON)",
@@ -97,20 +98,59 @@ async function stopServer(child) {
   if (child.exitCode === null) child.kill("SIGKILL");
 }
 
-const results = [];
-for (const suite of SUITES) {
-  console.log(`\n=== ${suite.name} ===`);
+async function runSuiteOnce(suite) {
   const server = startServer(suite.serverEnv);
   const healthy = await waitHealthy();
   if (!healthy) {
     console.error("  server never became healthy");
-    results.push({ name: suite.name, code: 1 });
     await stopServer(server);
-    continue;
+    return 1;
   }
   const code = await runSmoke(suite.script, suite.smokeEnv);
-  results.push({ name: suite.name, code });
   await stopServer(server);
+  return code;
+}
+
+// ONLY=<name substring> runs a subset — handy when iterating on one suite.
+const only = process.env.ONLY;
+const selected = only
+  ? SUITES.filter((s) => s.name.includes(only))
+  : SUITES;
+
+// AV warm-up: right after `prisma generate`, the query-engine DLL can still
+// be locked by the virus scanner, which makes the FIRST suite that imports
+// @prisma/client crash at module load with no output. Load and exercise it
+// here, with patience, so every suite starts against a warmed engine.
+process.env.DATABASE_URL ||= "file:./dev.db";
+process.stdout.write("warming prisma engine…");
+let warmed = false;
+for (let attempt = 0; attempt < 40 && !warmed; attempt++) {
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    const probe = new PrismaClient();
+    await probe.$queryRawUnsafe("SELECT 1");
+    await probe.$disconnect();
+    warmed = true;
+  } catch {
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+console.log(warmed ? " ok" : " gave up (suites may flake)");
+
+const results = [];
+for (const suite of selected) {
+  console.log(`\n=== ${suite.name} ===`);
+  let code = await runSuiteOnce(suite);
+  // One retry on a fresh server: right after a rebuild, the first boots can
+  // stall while the AV scans fresh binaries, which crashes a raw-fetch
+  // smoke mid-run. A genuine failure fails twice; a cold-start flake
+  // doesn't.
+  if (code !== 0) {
+    console.log(`  (suite failed — retrying once on a fresh server)`);
+    code = await runSuiteOnce(suite);
+    if (code === 0) console.log("  (passed on retry)");
+  }
+  results.push({ name: suite.name, code });
 }
 
 console.log("\n========== SUMMARY ==========");

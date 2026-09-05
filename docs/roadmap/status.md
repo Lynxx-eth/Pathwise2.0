@@ -26,6 +26,22 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   reasoning for them. Voice/whiteboard/group rooms stay future work.
   Frontend: room page with polling chat + help button, opened from the
   Buddies page. E2e: `scripts/smoke-rooms.mjs` (20 checks).
+- **Beta-hardening pass (post-roadmap):** three launch-list items closed.
+  (1) *Storage purge is complete*: `lib/storageSweep.ts` is the one place
+  that knows every file a user owns (course uploads + creator videos), and
+  BOTH purge paths — expired guests and the 30-day account purge — sweep it
+  before deleting rows. The GDPR "delete means the files too" item is done;
+  verified end-to-end by checking the disk in `smoke-hardening.mjs`.
+  (2) *Built-in error tracking*: server 5xx and frontend crashes are
+  fingerprinted (ids/lines normalized so one bug = one bucket), deduped per
+  day with counts, capped and pruned at 30 days, and read via
+  `GET /api/ops/errors`; 500 responses carry a requestId a tester can
+  screenshot. No new dependencies — a Sentry can replace the transport
+  later without moving the capture points. (3) *Constant-time ops auth*:
+  every `x-cron-secret` check goes through one `timingSafeEqual` helper.
+  Also: the smoke runner warms the Prisma engine before suite #1 (AV locks
+  the fresh DLL after a regenerate) and retries a failed suite once on a
+  fresh server; `ONLY=<name>` runs a subset.
 - **Phase 14 (execution order) — Reliability pass: `npm run smoke`.**
   `scripts/run-smokes.mjs` runs all 13 end-to-end suites (218 checks),
   booting a FRESH server per suite so in-memory rate limits can't bleed

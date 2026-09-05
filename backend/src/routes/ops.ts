@@ -10,9 +10,7 @@ import { prisma } from "../lib/prisma.js";
 import { usageSummary } from "../lib/aiMeter.js";
 import { funnel } from "../lib/analytics.js";
 
-function authorized(secretHeader: unknown): boolean {
-  return Boolean(env.CRON_SECRET) && secretHeader === env.CRON_SECRET;
-}
+import { opsAuthorized as authorized } from "../lib/opsAuth.js";
 
 export default async function opsRoutes(app: FastifyInstance) {
   app.get("/api/ops/metrics", async (req, reply) => {

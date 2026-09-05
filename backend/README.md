@@ -145,6 +145,8 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | POST | `/api/rooms/:id/topic` | ✔ | Set the shared focus topic (a name, never a file) |
 | POST | `/api/rooms/:id/help` | ✔ | Ask PATHWISE — facilitates only when BOTH have asked; leak-guarded |
 | POST | `/api/rooms/:id/end` | ✔ | End the session (either side) |
+| POST | `/api/client-errors` | — | Frontend crash reports (rate-limited, bounded, deduped) |
+| GET  | `/api/ops/errors` | cron secret | Grouped error buckets, last 30 days |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |

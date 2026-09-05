@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "./prisma.js";
 import { env } from "./env.js";
 import { hashPassword } from "./auth.js";
-import { storage } from "./storage.js";
+import { removeUserStoredFiles } from "./storageSweep.js";
 import { guestExpiry, syntheticGuestEmail } from "./guestPolicy.js";
 import type { User } from "@prisma/client";
 
@@ -51,26 +51,13 @@ export async function isGuestUser(userId: string): Promise<boolean> {
 export async function purgeExpiredGuests(now = new Date()): Promise<number> {
   const expired = await prisma.user.findMany({
     where: { isGuest: true, guestExpiresAt: { lt: now } },
-    select: {
-      id: true,
-      courses: {
-        select: { uploads: { select: { id: true, storagePath: true } } },
-      },
-    },
+    select: { id: true },
   });
 
   for (const guest of expired) {
-    for (const course of guest.courses) {
-      for (const upload of course.uploads) {
-        // Best-effort: the DB delete below is authoritative either way.
-        await storage.remove(upload.storagePath).catch((err) => {
-          console.warn(
-            `⚠️  guest purge: failed to remove stored file ${upload.storagePath}:`,
-            err instanceof Error ? err.message : err
-          );
-        });
-      }
-    }
+    // Shared sweeper covers every file-bearing feature (uploads, creator
+    // videos, whatever comes next) in one place.
+    await removeUserStoredFiles(guest.id);
     await prisma.user.delete({ where: { id: guest.id } });
   }
   return expired.length;

@@ -9,7 +9,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { env } from "../lib/env.js";
+import { opsAuthorized } from "../lib/opsAuth.js";
 import { isGuestUser } from "../lib/guests.js";
 import { membershipOf } from "../lib/communities.js";
 import {
@@ -474,7 +474,7 @@ export default async function communityRoutes(app: FastifyInstance) {
 
   // --- Ops: the moderation queue. Same CRON_SECRET guard as other ops routes.
   app.get("/api/ops/reports", async (req, reply) => {
-    if (!env.CRON_SECRET || req.headers["x-cron-secret"] !== env.CRON_SECRET) {
+    if (!opsAuthorized(req.headers["x-cron-secret"])) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
     const reports = await prisma.contentReport.findMany({
@@ -529,7 +529,7 @@ export default async function communityRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/ops/reports/:id/resolve", async (req, reply) => {
-    if (!env.CRON_SECRET || req.headers["x-cron-secret"] !== env.CRON_SECRET) {
+    if (!opsAuthorized(req.headers["x-cron-secret"])) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
     const { id } = req.params as { id: string };
