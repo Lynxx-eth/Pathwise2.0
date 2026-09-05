@@ -14,17 +14,27 @@ import type {
   QuizTopicInput,
   SocraticContext,
   TokenUsage,
+  TopicBreakdown,
+  WrittenGrade,
+  WrittenQuestion,
 } from "./types.js";
 import {
+  askSystemPrompt,
   classifyMaterialPrompt,
+  explainTopicPrompt,
   extractTopicsPrompt,
   generateQuizPrompt,
+  gradeWrittenPrompt,
   SOCRATIC_FALLBACK,
   socraticSystemPrompt,
   transcribeImagePrompt,
+  validateBreakdown,
+  validateGrade,
   validateQuestions,
   validateTopics,
   validateVerdict,
+  validateWrittenQuestions,
+  writtenQuestionsPrompt,
 } from "./prompts.js";
 import { env } from "../lib/env.js";
 
@@ -126,6 +136,77 @@ export class OpenAIProvider implements AIProvider {
       user
     );
     return { value: validateVerdict(parsed), usage };
+  }
+
+  async explainTopic(
+    courseName: string,
+    topicName: string,
+    conceptContext: string,
+    materialText: string
+  ): Promise<AIResult<TopicBreakdown | null>> {
+    const { system, user } = explainTopicPrompt(
+      courseName,
+      topicName,
+      conceptContext,
+      materialText
+    );
+    const { parsed, usage } = await this.json<Record<string, unknown>>(
+      system,
+      user
+    );
+    return { value: validateBreakdown(parsed), usage };
+  }
+
+  async askReply(
+    courseName: string,
+    topicName: string,
+    history: ChatMessage[],
+    grounding: string
+  ): Promise<AIResult<string>> {
+    const res = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        {
+          role: "system",
+          content: askSystemPrompt(courseName, topicName, grounding),
+        },
+        ...history.map((m) => ({ role: m.role, content: m.content }) as const),
+      ],
+    });
+    const value =
+      res.choices[0]?.message?.content ??
+      "Could you ask that again in different words?";
+    return { value, usage: this.usageOf(res) };
+  }
+
+  async generateWrittenQuestions(
+    courseName: string,
+    topics: QuizTopicInput[],
+    count: number
+  ): Promise<AIResult<WrittenQuestion[]>> {
+    const { system, user } = writtenQuestionsPrompt(courseName, topics, count);
+    const { parsed, usage } = await this.json<{ questions: unknown }>(
+      system,
+      user
+    );
+    return { value: validateWrittenQuestions(parsed), usage };
+  }
+
+  async gradeWrittenAnswer(
+    question: string,
+    referenceAnswer: string,
+    studentAnswer: string
+  ): Promise<AIResult<WrittenGrade>> {
+    const { system, user } = gradeWrittenPrompt(
+      question,
+      referenceAnswer,
+      studentAnswer
+    );
+    const { parsed, usage } = await this.json<Partial<WrittenGrade>>(
+      system,
+      user
+    );
+    return { value: validateGrade(parsed), usage };
   }
 
   async transcribeImage(

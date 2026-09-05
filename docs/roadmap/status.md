@@ -26,6 +26,25 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   reasoning for them. Voice/whiteboard/group rooms stay future work.
   Frontend: room page with polling chat + help button, opened from the
   Buddies page. E2e: `scripts/smoke-rooms.mjs` (20 checks).
+- **Learning layer (the missing "teach me" surface — PDF Phase 8 "Ask
+  PATHWISE" + old-roadmap quiz variety): done.** Tap any mapped topic →
+  `/topics/:id` renders a lecturer-grade breakdown generated from the
+  course's OWN uploaded material (overview, full sections with worked
+  examples, myth/truth misconceptions, an exam-recite summary), cached on
+  the Topic row — one AI call per topic ever, owner-only. The page carries
+  **Ask PATHWISE**: explanatory mode is ALLOWED here by design (the
+  no-answers contract protects the Socratic tutor, not the whole app),
+  grounded in the concept + cached breakdown. Quizzes are now **two-phase**:
+  MCQs, then `QUIZ_WRITTEN_COUNT` written-answer questions graded by AI as
+  correct / close / incorrect — "close" still moves mastery, the verdict
+  and a teaching explanation plus the model answer come back honestly, and
+  a failed written generation never sinks the quiz. After completion,
+  **flashcards**: the quiz's own Q&A as a flip deck (free — no AI call),
+  gated to finished sessions so answers never leak mid-quiz. Flow the
+  product was missing: map → READ the breakdown → ask what's unclear →
+  quiz with confidence → flashcards lock it in. Four new provider methods
+  across mock/OpenAI/Gemini behind the same abstraction + metering. E2e:
+  `scripts/smoke-learning.mjs` (25 checks).
 - **Beta-hardening pass (post-roadmap):** three launch-list items closed.
   (1) *Storage purge is complete*: `lib/storageSweep.ts` is the one place
   that knows every file a user owns (course uploads + creator videos), and

@@ -11,6 +11,9 @@ import type {
   QuizTopicInput,
   SocraticContext,
   TokenUsage,
+  TopicBreakdown,
+  WrittenGrade,
+  WrittenQuestion,
 } from "./types.js";
 
 // The mock costs nothing, so it reports zero tokens. The usage row is still
@@ -209,6 +212,110 @@ export class MockAIProvider implements AIProvider {
       });
     }
     return wrap({ verdict: "clean" as const, reason: "Looks like course material." });
+  }
+
+  async explainTopic(
+    courseName: string,
+    topicName: string,
+    conceptContext: string,
+    materialText: string
+  ): Promise<AIResult<TopicBreakdown | null>> {
+    void courseName;
+    // Deterministic structure built from the concept context + material so
+    // the learning surface is fully testable free.
+    const phrases = candidatePhrases(materialText).slice(0, 3);
+    const sections = [
+      {
+        heading: `What ${topicName} actually is`,
+        body:
+          `${topicName} is the focus of this breakdown. In plain terms, it covers the ideas your material emphasizes here. ` +
+          `Key context we extracted: ${conceptContext.split("\n").slice(0, 3).join("; ")}.`,
+        example: `Worked example: imagine applying ${topicName} to the simplest possible case first, then adding one complication at a time.`,
+      },
+      ...phrases.map((p) => ({
+        heading: `How ${p} fits in`,
+        body: `Your material connects ${topicName} with ${p}. Understand each on its own, then how one leads to the other.`,
+      })),
+    ];
+    return wrap({
+      overview: `${topicName}, broken down step by step from your own material — what it is, why it matters, and how its pieces fit together.`,
+      sections,
+      misconceptions: [
+        {
+          myth: `${topicName} is just memorization`,
+          truth: `${topicName} is a structure of connected ideas — understand the connections and the details hold themselves.`,
+        },
+      ],
+      summary: `${topicName}: start from the core definition, build through each section above, and test yourself with the quiz when the pieces feel connected.`,
+    });
+  }
+
+  async askReply(
+    courseName: string,
+    topicName: string,
+    history: ChatMessage[],
+    grounding: string
+  ): Promise<AIResult<string>> {
+    void courseName;
+    void grounding;
+    const lastUser = [...history].reverse().find((m) => m.role === "user");
+    const asked = lastUser?.content.slice(0, 80) ?? "that";
+    // Explanatory surface: the mock answers directly (unlike the Socratic
+    // mock) and ends with a check-in.
+    return wrap(
+      `Good question. About "${asked}": within ${topicName}, the direct answer is that it works exactly as the breakdown's relevant section describes — the key is the connection between the definition and the example. In short: take the core idea, apply it to the simplest case, and the behaviour you asked about follows. Does that resolve it, or should I go deeper on any part?`
+    );
+  }
+
+  async generateWrittenQuestions(
+    courseName: string,
+    topics: QuizTopicInput[],
+    count: number
+  ): Promise<AIResult<WrittenQuestion[]>> {
+    void courseName;
+    const picked = topics.slice(0, Math.max(1, count));
+    return wrap(
+      Array.from({ length: count }, (_, i) => {
+        const t = picked[i % picked.length];
+        return {
+          topicName: t.name,
+          question: `In your own words, explain the core idea of ${t.name} and why it matters in this course.`,
+          referenceAnswer: `${t.name} is a central concept: its core idea drives the surrounding material, and it matters because later topics build on it.`,
+          explanation: `A complete answer names the core idea of ${t.name} and connects it to why the course emphasizes it.`,
+        };
+      })
+    );
+  }
+
+  async gradeWrittenAnswer(
+    question: string,
+    referenceAnswer: string,
+    studentAnswer: string
+  ): Promise<AIResult<WrittenGrade>> {
+    void question;
+    // Deterministic word-overlap heuristic so the grade path is testable:
+    // echoing the substance grades correct, partial overlap grades close.
+    const words = (s: string) =>
+      new Set(
+        s
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+      );
+    const ref = words(referenceAnswer);
+    const student = words(studentAnswer);
+    let hits = 0;
+    for (const w of ref) if (student.has(w)) hits += 1;
+    const ratio = ref.size === 0 ? 0 : hits / ref.size;
+    const verdict = ratio >= 0.5 ? "correct" : ratio >= 0.2 ? "close" : "incorrect";
+    const explanation =
+      verdict === "correct"
+        ? `Yes — you captured the substance. Model answer for comparison: ${referenceAnswer}`
+        : verdict === "close"
+          ? `You're partway there — part of the idea is present, but something important is missing. The complete answer: ${referenceAnswer}`
+          : `Not this time — the core idea isn't there yet. Here's the answer to learn from: ${referenceAnswer}`;
+    return wrap({ verdict, explanation });
   }
 }
 

@@ -3,11 +3,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  askSystemPrompt,
   clamp01,
   extractTopicsPrompt,
+  validateBreakdown,
+  validateGrade,
   validateTopics,
   validateQuestions,
   validateVerdict,
+  validateWrittenQuestions,
   UNTRUSTED_INPUT_RULE,
   socraticSystemPrompt,
 } from "./prompts.js";
@@ -106,6 +110,64 @@ test("validateVerdict fails open to clean on unknown verdicts", () => {
     "clean"
   );
   assert.equal(validateVerdict({}).verdict, "clean");
+});
+
+test("validateBreakdown bounds a good breakdown and rejects an empty one", () => {
+  const good = validateBreakdown({
+    overview: "  What this topic is about.  ",
+    sections: [
+      { heading: "Core idea", body: "The full explanation.", example: "e.g. this" },
+      { heading: "", body: "headless — dropped" },
+      { heading: "No body — dropped", body: "" },
+    ],
+    misconceptions: [
+      { myth: "It's magic", truth: "It's mechanism" },
+      { myth: "", truth: "half-empty — dropped" },
+    ],
+    summary: "Recite this before the exam.",
+  });
+  assert.ok(good);
+  assert.equal(good!.sections.length, 1);
+  assert.equal(good!.sections[0].example, "e.g. this");
+  assert.equal(good!.misconceptions.length, 1);
+
+  assert.equal(validateBreakdown({}), null);
+  assert.equal(validateBreakdown({ overview: "o", sections: [] }), null);
+});
+
+test("validateWrittenQuestions keeps well-formed questions, drops junk", () => {
+  const qs = validateWrittenQuestions({
+    questions: [
+      {
+        topicName: "Osmosis",
+        question: "Explain why water moves across the membrane.",
+        referenceAnswer: "Water moves toward higher solute concentration.",
+        explanation: "Must mention concentration gradient.",
+      },
+      { topicName: "", question: "no topic", referenceAnswer: "x" },
+      { topicName: "T", question: "short", referenceAnswer: "ok answer here" },
+    ],
+  });
+  assert.equal(qs.length, 1);
+  assert.equal(qs[0].topicName, "Osmosis");
+  assert.deepEqual(validateWrittenQuestions({}), []);
+});
+
+test("validateGrade accepts real verdicts and fails kind on junk", () => {
+  assert.equal(validateGrade({ verdict: "correct", explanation: "x" }).verdict, "correct");
+  assert.equal(validateGrade({ verdict: "incorrect", explanation: "x" }).verdict, "incorrect");
+  const junk = validateGrade({ verdict: "banana" as never });
+  assert.equal(junk.verdict, "close");
+  assert.ok(junk.explanation.length > 0);
+});
+
+test("ask prompt allows explanation, socratic prompt still forbids it", () => {
+  const ask = askSystemPrompt("Bio", "Cells", "Topic: Cells");
+  assert.ok(/MAY explain directly/.test(ask));
+  assert.ok(ask.includes(UNTRUSTED_INPUT_RULE));
+  assert.ok(
+    socraticSystemPrompt("Bio", "Cells").includes("NEVER give the final answer")
+  );
 });
 
 test("prompts carry the untrusted-input rule and the anti-placeholder rule", () => {

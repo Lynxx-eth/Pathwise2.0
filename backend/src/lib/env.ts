@@ -90,6 +90,10 @@ const schema = z.object({
   // internal testing goes through the CRON_SECRET header.
   FEATURE_USER_VIDEO_POSTING: envBool(false),
 
+  // Two-phase quizzes: how many written-answer questions follow the MCQs.
+  // 0 disables the written phase entirely.
+  QUIZ_WRITTEN_COUNT: z.coerce.number().int().min(0).max(5).default(2),
+
   // --- Guest limits (PATHWISE 2.0 Phase 1) --------------------------------
   // All enforced server-side. Guests exist to sample the core loop, not to
   // be a free tier — tighter caps everywhere, and everything expires.

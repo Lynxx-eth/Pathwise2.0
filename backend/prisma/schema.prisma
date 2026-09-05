@@ -239,6 +239,11 @@ model Topic {
   // Where in the material this came from, e.g. "syllabus.pdf — Week 3".
   sourceRef      String?
 
+  // Topic Breakdown (learning layer): the cached lecturer-style explanation
+  // generated from the course's own material. One AI call ever per topic.
+  breakdownJson  String?
+  breakdownAt    DateTime?
+
   createdAt      DateTime  @default(now())
 
   masteries      TopicMastery[]
@@ -320,12 +325,20 @@ model QuizItem {
   position      Int
   topicName     String
   question      String
-  optionsJson   String    // JSON array of option strings
+  optionsJson   String    // JSON array of option strings ("[]" for written)
   correctIndex  Int
   explanation   String
+  // Two-phase quizzes: "mcq" | "written". Written items have no options —
+  // the student types an answer and the AI grades correct/close/incorrect
+  // against referenceAnswer.
+  kind            String  @default("mcq")
+  referenceAnswer String?
 
   // Filled in when the student answers.
   selectedIndex Int?
+  writtenAnswer String?
+  // Written grading: "correct" | "close" | "incorrect".
+  verdict       String?
   isCorrect     Boolean?
   answeredAt    DateTime?
   // Milliseconds the student spent on the question — feeds the guessing signal.

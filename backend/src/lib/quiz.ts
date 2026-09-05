@@ -4,7 +4,7 @@
 // plan explicitly defers. What *is* adaptive is topic selection: which topics
 // get asked about, and how many questions each gets.
 import { prisma } from "./prisma.js";
-import { generateQuiz } from "./aiMeter.js";
+import { generateQuiz, generateWrittenQuestions } from "./aiMeter.js";
 import { env } from "./env.js";
 import { topicsWithMastery, isDue } from "./mastery.js";
 import { allocateQuestions } from "./planning.js";
@@ -104,6 +104,25 @@ export async function buildQuizSession(
     throw new Error("Couldn't generate questions for this course right now.");
   }
 
+  // Phase 2: written-answer questions on the quiz's strongest-priority
+  // topics. Best-effort — a failed written generation never sinks the quiz.
+  let written: Awaited<ReturnType<typeof generateWrittenQuestions>> = [];
+  if (env.QUIZ_WRITTEN_COUNT > 0) {
+    try {
+      written = await generateWrittenQuestions(
+        userId,
+        course.name,
+        allocation.slice(0, 3).map((a) => ({
+          name: a.topic.name,
+          weight: a.topic.weight,
+        })),
+        env.QUIZ_WRITTEN_COUNT
+      );
+    } catch {
+      written = [];
+    }
+  }
+
   // Map each generated question back to a real topic id by name, so grading
   // can update the right mastery row. Anything unmatched falls to the
   // highest-priority topic rather than being dropped.
@@ -118,23 +137,38 @@ export async function buildQuizSession(
       courseId,
       kind,
       items: {
-        create: questions.map((q, i) => {
-          // Server-side shuffle — see shuffleOptions for why the model isn't
-          // trusted with answer-position randomness.
-          const shuffled = shuffleOptions(q.options, q.correctIndex);
-          return {
-            position: i,
-            topicId: byName.get(q.topicName.trim().toLowerCase()) ?? fallbackTopicId,
-            topicName: q.topicName,
-            question: q.question,
-            optionsJson: JSON.stringify(shuffled.options),
-            correctIndex: shuffled.correctIndex,
-            explanation: q.explanation,
-          };
-        }),
+        create: [
+          ...questions.map((q, i) => {
+            // Server-side shuffle — see shuffleOptions for why the model
+            // isn't trusted with answer-position randomness.
+            const shuffled = shuffleOptions(q.options, q.correctIndex);
+            return {
+              position: i,
+              topicId:
+                byName.get(q.topicName.trim().toLowerCase()) ?? fallbackTopicId,
+              topicName: q.topicName,
+              question: q.question,
+              optionsJson: JSON.stringify(shuffled.options),
+              correctIndex: shuffled.correctIndex,
+              explanation: q.explanation,
+            };
+          }),
+          ...written.map((w, i) => ({
+            position: questions.length + i,
+            kind: "written",
+            topicId:
+              byName.get(w.topicName.trim().toLowerCase()) ?? fallbackTopicId,
+            topicName: w.topicName,
+            question: w.question,
+            optionsJson: "[]",
+            correctIndex: 0,
+            referenceAnswer: w.referenceAnswer,
+            explanation: w.explanation,
+          })),
+        ],
       },
     },
   });
 
-  return { sessionId: session.id, kind, total: questions.length };
+  return { sessionId: session.id, kind, total: questions.length + written.length };
 }

@@ -64,6 +64,37 @@ export interface ImageInput {
   mimeType: string;
 }
 
+/**
+ * Learning layer: the lecturer-style breakdown of one topic, generated from
+ * the course's own material and cached on the Topic row.
+ */
+export interface BreakdownSection {
+  heading: string;
+  body: string;
+  example?: string;
+}
+
+export interface TopicBreakdown {
+  overview: string;
+  sections: BreakdownSection[];
+  misconceptions: { myth: string; truth: string }[];
+  summary: string;
+}
+
+/** Two-phase quizzes: a written-answer question with its model answer. */
+export interface WrittenQuestion {
+  topicName: string;
+  question: string;
+  referenceAnswer: string;
+  explanation: string;
+}
+
+/** Grading a student's written answer. */
+export interface WrittenGrade {
+  verdict: "correct" | "close" | "incorrect";
+  explanation: string;
+}
+
 /** Step 15: verdict on whether uploaded material belongs in a study app. */
 export interface MaterialVerdict {
   // "clean" — course material. "off_topic" — not study material at all.
@@ -106,6 +137,45 @@ export interface AIProvider {
     courseName: string,
     materialText: string
   ): Promise<AIResult<MaterialVerdict>>;
+
+  /**
+   * Learning layer: an extensive, lecturer-grade breakdown of ONE topic,
+   * grounded in the course's own material. Explanations are allowed here —
+   * this is the teaching surface; the no-answers contract belongs to the
+   * Socratic tutor alone.
+   */
+  explainTopic(
+    courseName: string,
+    topicName: string,
+    conceptContext: string,
+    materialText: string
+  ): Promise<AIResult<TopicBreakdown | null>>;
+
+  /**
+   * Learning layer: a helpful expert reply on a topic page. May explain
+   * directly (the roadmap's "explanatory response based on intent"), stays
+   * grounded in the topic, and checks understanding as it goes.
+   */
+  askReply(
+    courseName: string,
+    topicName: string,
+    history: ChatMessage[],
+    grounding: string
+  ): Promise<AIResult<string>>;
+
+  /** Two-phase quizzes: written-answer questions for the given topics. */
+  generateWrittenQuestions(
+    courseName: string,
+    topics: QuizTopicInput[],
+    count: number
+  ): Promise<AIResult<WrittenQuestion[]>>;
+
+  /** Grade a student's written answer against the reference. */
+  gradeWrittenAnswer(
+    question: string,
+    referenceAnswer: string,
+    studentAnswer: string
+  ): Promise<AIResult<WrittenGrade>>;
 
   /**
    * PATHWISE 2.0 Phase 5: turn a photo/screenshot of study material (notes,

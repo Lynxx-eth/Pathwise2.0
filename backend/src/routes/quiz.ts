@@ -11,7 +11,7 @@ import { buildQuizSession } from "../lib/quiz.js";
 import { recordQuizAnswer } from "../lib/mastery.js";
 import { awardXp, grantBadge, XP } from "../lib/gamification.js";
 import { track } from "../lib/analytics.js";
-import { AIBudgetExceededError } from "../lib/aiMeter.js";
+import { AIBudgetExceededError, gradeWrittenAnswer } from "../lib/aiMeter.js";
 import { maybeRewardReferral } from "../lib/referrals.js";
 import { isGuestUser } from "../lib/guests.js";
 import { guestMayStartQuiz } from "../lib/guestPolicy.js";
@@ -25,7 +25,9 @@ const startSchema = z.object({
 });
 
 const answerSchema = z.object({
-  selectedIndex: z.number().int().min(0).max(3),
+  // MCQ answers send selectedIndex; written answers send answerText.
+  selectedIndex: z.number().int().min(0).max(3).optional(),
+  answerText: z.string().min(1).max(3000).optional(),
   timeMs: z.number().int().min(0).max(1000 * 60 * 30).optional(),
 });
 
@@ -36,6 +38,7 @@ function publicItem(item: QuizItem, total: number) {
     position: item.position,
     number: item.position + 1,
     total,
+    kind: item.kind,
     topicName: item.topicName,
     question: item.question,
     options: JSON.parse(item.optionsJson) as string[],
@@ -142,7 +145,7 @@ export default async function quizRoutes(app: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid input" });
       }
-      const { selectedIndex, timeMs } = parsed.data;
+      const { selectedIndex, answerText, timeMs } = parsed.data;
 
       const session = await prisma.quizSession.findFirst({
         where: { id, userId: req.user.sub },
@@ -158,17 +161,55 @@ export default async function quizRoutes(app: FastifyInstance) {
         return reply.code(409).send({ error: "No question left to answer." });
       }
 
-      const options = JSON.parse(item.optionsJson) as string[];
-      if (selectedIndex >= options.length) {
-        return reply.code(400).send({ error: "Invalid option." });
-      }
+      // Grade by item kind. Written answers (phase 2) go to the AI grader:
+      // "close" counts as correct for mastery/XP (partial understanding is
+      // still understanding) but the verdict reaches the UI honestly.
+      let isCorrect: boolean;
+      let verdict: "correct" | "close" | "incorrect" | null = null;
+      let gradeExplanation: string | null = null;
 
-      const isCorrect = selectedIndex === item.correctIndex;
+      if (item.kind === "written") {
+        if (!answerText) {
+          return reply.code(400).send({ error: "Type an answer first." });
+        }
+        let grade;
+        try {
+          grade = await gradeWrittenAnswer(
+            req.user.sub,
+            item.question,
+            item.referenceAnswer ?? item.explanation,
+            answerText
+          );
+        } catch (err) {
+          if (err instanceof AIBudgetExceededError) {
+            return reply.code(429).send({ error: err.message });
+          }
+          throw err;
+        }
+        verdict = grade.verdict;
+        gradeExplanation = grade.explanation;
+        isCorrect = grade.verdict !== "incorrect";
+        await track(req.user.sub, "written_answered", {
+          sessionId: session.id,
+          verdict: grade.verdict,
+        });
+      } else {
+        if (selectedIndex === undefined) {
+          return reply.code(400).send({ error: "Pick an option first." });
+        }
+        const options = JSON.parse(item.optionsJson) as string[];
+        if (selectedIndex >= options.length) {
+          return reply.code(400).send({ error: "Invalid option." });
+        }
+        isCorrect = selectedIndex === item.correctIndex;
+      }
 
       await prisma.quizItem.update({
         where: { id: item.id },
         data: {
-          selectedIndex,
+          selectedIndex: item.kind === "written" ? null : selectedIndex,
+          writtenAnswer: item.kind === "written" ? answerText : null,
+          verdict,
           isCorrect,
           answeredAt: new Date(),
           timeMs: timeMs ?? null,
@@ -282,10 +323,16 @@ export default async function quizRoutes(app: FastifyInstance) {
 
       return reply.send({
         result: {
+          kind: item.kind,
           isCorrect,
-          correctIndex: item.correctIndex,
-          explanation: item.explanation,
-          selectedIndex,
+          // MCQ fields (meaningless for written items).
+          correctIndex: item.kind === "written" ? null : item.correctIndex,
+          selectedIndex: item.kind === "written" ? null : selectedIndex,
+          // Written fields: the AI's verdict + teaching explanation, and the
+          // model answer to compare against.
+          verdict,
+          referenceAnswer: item.kind === "written" ? item.referenceAnswer : null,
+          explanation: gradeExplanation ?? item.explanation,
         },
         mastery: masteryDelta
           ? {
@@ -303,6 +350,39 @@ export default async function quizRoutes(app: FastifyInstance) {
         newBadges,
         remaining,
         completion,
+      });
+    }
+  );
+
+  // Flashcards: the finished quiz's questions and answers as review cards.
+  // Completed sessions only — during the quiz the answers stay server-side.
+  app.get(
+    "/api/quiz/sessions/:id/review",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const session = await prisma.quizSession.findFirst({
+        where: { id, userId: req.user.sub, status: "completed" },
+        include: { items: { orderBy: { position: "asc" } } },
+      });
+      if (!session) {
+        return reply.code(404).send({ error: "Finished quiz not found" });
+      }
+      return reply.send({
+        cards: session.items.map((i) => {
+          const options = JSON.parse(i.optionsJson) as string[];
+          return {
+            id: i.id,
+            topicName: i.topicName,
+            front: i.question,
+            back:
+              i.kind === "written"
+                ? (i.referenceAnswer ?? i.explanation)
+                : (options[i.correctIndex] ?? ""),
+            explanation: i.explanation,
+            gotIt: i.isCorrect ?? false,
+          };
+        }),
       });
     }
   );

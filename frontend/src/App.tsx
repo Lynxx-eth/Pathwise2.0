@@ -29,6 +29,7 @@ import Messages from "./pages/Messages";
 import Videos from "./pages/Videos";
 import CreatorStudio from "./pages/CreatorStudio";
 import StudyRoom from "./pages/StudyRoom";
+import TopicView from "./pages/TopicView";
 
 function FullPageLoader() {
   return (
@@ -101,6 +102,8 @@ function AppRoutes() {
       <Route path="/courses" element={<Protected><Courses /></Protected>} />
       <Route path="/courses/new" element={<Protected><NewCourse /></Protected>} />
       <Route path="/courses/:id" element={<Protected><CourseView /></Protected>} />
+      {/* The learning layer: lecturer-grade topic breakdowns + Ask PATHWISE. */}
+      <Route path="/topics/:topicId" element={<Protected><TopicView /></Protected>} />
       <Route path="/study-plan/:id" element={<Protected><StudyPlan /></Protected>} />
 
       {/* Quizzes and Socratic sessions are server-side sessions, so their ids

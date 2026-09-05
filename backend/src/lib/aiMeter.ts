@@ -20,6 +20,9 @@ import type {
   QuizTopicInput,
   SocraticContext,
   TokenUsage,
+  TopicBreakdown,
+  WrittenGrade,
+  WrittenQuestion,
 } from "../ai/types.js";
 
 export type AIOperation =
@@ -28,7 +31,12 @@ export type AIOperation =
   | "socratic_reply"
   | "moderate"
   // 2.0 Phase 5: image -> text, feeding the same pipeline as documents.
-  | "transcribe_image";
+  | "transcribe_image"
+  // Learning layer: breakdowns, Ask PATHWISE, written-answer quizzes.
+  | "explain_topic"
+  | "ask_reply"
+  | "written_questions"
+  | "grade_written";
 
 /** Raised when a user has burned through their daily AI budget. */
 export class AIBudgetExceededError extends Error {
@@ -191,6 +199,54 @@ export function transcribeImage(
 ): Promise<string> {
   return meter("transcribe_image", userId, () =>
     ai.transcribeImage(courseName, image)
+  );
+}
+
+// --- Learning layer -------------------------------------------------------
+
+export function explainTopic(
+  userId: string | null,
+  courseName: string,
+  topicName: string,
+  conceptContext: string,
+  materialText: string
+): Promise<TopicBreakdown | null> {
+  return meter("explain_topic", userId, () =>
+    ai.explainTopic(courseName, topicName, conceptContext, materialText)
+  );
+}
+
+export function askReply(
+  userId: string | null,
+  courseName: string,
+  topicName: string,
+  history: ChatMessage[],
+  grounding: string
+): Promise<string> {
+  return meter("ask_reply", userId, () =>
+    ai.askReply(courseName, topicName, history, grounding)
+  );
+}
+
+export function generateWrittenQuestions(
+  userId: string | null,
+  courseName: string,
+  topics: QuizTopicInput[],
+  count: number
+): Promise<WrittenQuestion[]> {
+  return meter("written_questions", userId, () =>
+    ai.generateWrittenQuestions(courseName, topics, count)
+  );
+}
+
+export function gradeWrittenAnswer(
+  userId: string | null,
+  question: string,
+  referenceAnswer: string,
+  studentAnswer: string
+): Promise<WrittenGrade> {
+  return meter("grade_written", userId, () =>
+    ai.gradeWrittenAnswer(question, referenceAnswer, studentAnswer)
   );
 }
 

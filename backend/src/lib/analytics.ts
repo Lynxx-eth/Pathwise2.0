@@ -70,7 +70,11 @@ export type EventName =
   | "creator_video_published"
   // Study Buddy Rooms (PATHWISE 2.0 Phases 11/19)
   | "study_room_opened"
-  | "study_room_facilitated";
+  | "study_room_facilitated"
+  // Learning layer: breakdowns, Ask PATHWISE, written answers
+  | "breakdown_generated"
+  | "topic_asked"
+  | "written_answered";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

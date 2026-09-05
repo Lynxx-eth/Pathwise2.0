@@ -1,7 +1,7 @@
 // Course knowledge map (Step 2) — real topics, weights and per-topic mastery,
 // plus adding more material to an existing course (Step 2 item 6).
 import { useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
@@ -322,7 +322,13 @@ export default function CourseView() {
               />
               <div className="t-main">
                 <div className="t-name">
-                  {t.name}
+                  <Link
+                    to={`/topics/${t.id}`}
+                    style={{ color: "var(--ink)", textDecoration: "underline", textDecorationColor: "var(--ink-faint)", textUnderlineOffset: 3 }}
+                    title="Open the full breakdown of this topic"
+                  >
+                    {t.name}
+                  </Link>
                   {t.difficulty !== null && (
                     <span
                       className="pill pill-muted"
@@ -331,6 +337,13 @@ export default function CourseView() {
                       {difficultyLabel(t.difficulty)}
                     </span>
                   )}
+                  <Link
+                    to={`/topics/${t.id}`}
+                    className="pill pill-coral"
+                    style={{ marginLeft: 8, fontSize: 10.5 }}
+                  >
+                    Learn
+                  </Link>
                 </div>
                 {t.summary && (
                   <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>
