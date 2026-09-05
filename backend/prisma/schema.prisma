@@ -103,6 +103,7 @@ model User {
   conversationStates    ConversationState[]
   blocksMade            UserBlock[] @relation("BlocksMade")
   blocksReceived        UserBlock[] @relation("BlocksReceived")
+  videoEngagements      VideoEngagement[]
 
   @@index([deletedAt])
   @@index([purgeAfter])
@@ -777,6 +778,48 @@ model UserBlock {
 
   @@unique([blockerId, blockedId])
   @@index([blockedId])
+}
+
+// Curated Educational Videos (PATHWISE 2.0 Phase 14). Editorial/admin
+// content ONLY — user video uploads are a later phase behind a disabled
+// flag. Rows are managed through CRON_SECRET-guarded ops endpoints and a
+// small idempotent seed; students browse, and topic names in topicsJson
+// drive matching against their knowledge maps.
+model CuratedVideo {
+  id           String   @id @default(cuid())
+  title        String
+  creator      String   // source channel/author, shown with attribution
+  url          String   // external source link (opens on the source site)
+  thumbnailUrl String?
+  subject      String   // e.g. "Biology" — aligns with community subjects
+  topicsJson   String   @default("[]") // topic names for matching
+  difficulty   Float?   // 0..1, same scale as Topic.difficulty
+  durationSec  Int?
+  transcript   String?  // optional; future search/grounding
+  status       String   @default("published") // "published" | "hidden"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  engagements  VideoEngagement[]
+
+  @@index([status, subject])
+}
+
+// Watch/like/save signals — the inputs the Personalized FYP (Phase 15)
+// ranks on. One row per (user, video, kind) for like/save toggles; "view"
+// rows accumulate.
+model VideoEngagement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId   String
+  video     CuratedVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  // "view" | "like" | "save"
+  kind      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, kind])
+  @@index([videoId, kind])
 }
 
 // Abuse reporting (required before any social surface opens). Reports queue

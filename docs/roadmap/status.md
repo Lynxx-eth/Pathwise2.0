@@ -13,6 +13,21 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 11 (execution order) — Curated Educational Videos: done.**
+  Editorial catalog only — user uploads stay off until the flagged creator
+  phase. `CuratedVideo` carries the roadmap's metadata (title, creator,
+  source link, subject, topic names, difficulty, duration, transcript slot,
+  thumbnail); a conservative seed of famous stable sources (3Blue1Brown,
+  MIT OCW, Kurzgesagt, CrashCourse, Khan Academy) loads idempotently at
+  boot, and editors manage the catalog through CRON_SECRET ops endpoints
+  (add/list/hide). The student shelf ranks by derived signals (topic-name
+  overlap 70%, subject affinity 30% — pure, unit-tested) and every matched
+  card says WHY it's shown; unmatched videos still surface so the shelf is
+  never empty. Likes/saves/views land in `VideoEngagement` — the exact
+  inputs Phase 15's FYP ranks on. Guests browse but can't engage
+  (persistent history is account-gated). Links open at the source with
+  attribution. Frontend: /videos with subject chips + For-you ranking.
+  E2e: `scripts/smoke-videos.mjs`.
 - **Phase 10 (execution order) — Direct Messaging: done.** One conversation
   per user pair (canonical order, unit-tested). Buddies talk immediately;
   anyone else's first message is a message request the recipient accepts or

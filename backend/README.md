@@ -133,6 +133,9 @@ Auth is a Bearer JWT: `Authorization: Bearer <token>`.
 | POST | `/api/dms/:id/mute` | ✔ | Per-conversation mute |
 | POST | `/api/dms/block` | ✔ | Block/unblock a user (silences both directions) |
 | POST | `/api/dms/messages/:messageId/report` | ✔ | Report a DM into the ops queue |
+| GET  | `/api/videos` | ✔ | Curated shelf ranked for the learner (2.0 Phase 14); `?subject=` filters |
+| POST | `/api/videos/:id/engage` | ✔ | `{kind: view\|like\|save}` — FYP signals; guests 403 |
+| GET/POST | `/api/ops/videos` | cron secret | Catalog management; `POST .../:id` publishes/hides |
 
 ### Courses & materials (Steps 2–3)
 | Method | Path | Auth | Purpose |

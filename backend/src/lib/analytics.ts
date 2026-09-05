@@ -62,7 +62,9 @@ export type EventName =
   // Direct Messaging (PATHWISE 2.0 Phase 12)
   | "dm_sent"
   | "dm_request_responded"
-  | "dm_block_toggled";
+  | "dm_block_toggled"
+  // Curated videos (PATHWISE 2.0 Phase 14)
+  | "video_engaged";
 
 /**
  * Record an event. Never throws — analytics must not be able to fail a request.

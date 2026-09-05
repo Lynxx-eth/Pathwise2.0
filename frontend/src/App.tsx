@@ -26,6 +26,7 @@ import CommunityView from "./pages/CommunityView";
 import PostView from "./pages/PostView";
 import Buddies from "./pages/Buddies";
 import Messages from "./pages/Messages";
+import Videos from "./pages/Videos";
 
 function FullPageLoader() {
   return (
@@ -121,6 +122,8 @@ function AppRoutes() {
       {/* Direct messages (PATHWISE 2.0 Phase 12). */}
       <Route path="/messages" element={<Protected><Messages /></Protected>} />
       <Route path="/messages/:conversationId" element={<Protected><Messages /></Protected>} />
+      {/* Curated educational videos (PATHWISE 2.0 Phase 14). */}
+      <Route path="/videos" element={<Protected><Videos /></Protected>} />
 
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       {/* Frozen behind a flag (PATHWISE 2.0 Phase 0) — kept for a clean

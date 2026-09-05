@@ -251,6 +251,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/messages" className={navClass}>
             <MailIcon cls="icon" /> Messages
           </NavLink>
+          <NavLink to="/videos" className={navClass}>
+            <SparklesIcon cls="icon" /> Videos
+          </NavLink>
           {leafMatch && (
             <NavLink to="/game" className={navClass}>
               <GamepadIcon /> Sprout's Garden

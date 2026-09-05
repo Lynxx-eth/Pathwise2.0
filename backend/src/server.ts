@@ -19,6 +19,7 @@ import feedbackRoutes from "./routes/feedback.js";
 import communityRoutes from "./routes/communities.js";
 import buddyRoutes from "./routes/buddies.js";
 import dmRoutes from "./routes/dms.js";
+import videoRoutes from "./routes/videos.js";
 import opsRoutes from "./routes/ops.js";
 import { ai } from "./ai/index.js";
 import { email } from "./email/index.js";
@@ -26,6 +27,7 @@ import { billing } from "./lib/billing.js";
 import { seedBadges } from "./lib/gamification.js";
 import { seedShopItems } from "./lib/garden.js";
 import { seedCommunities } from "./lib/communities.js";
+import { seedVideos } from "./lib/videos.js";
 import { publicFeatures } from "./lib/features.js";
 
 const app = Fastify({ logger: true });
@@ -84,6 +86,7 @@ await app.register(feedbackRoutes);
 await app.register(communityRoutes);
 await app.register(buddyRoutes);
 await app.register(dmRoutes);
+await app.register(videoRoutes);
 await app.register(opsRoutes);
 
 app.get("/api/health", async () => ({
@@ -106,6 +109,7 @@ try {
   await seedBadges();
   await seedShopItems();
   await seedCommunities();
+  await seedVideos();
 } catch (err) {
   app.log.error({ err }, "Failed to seed reference data");
 }
