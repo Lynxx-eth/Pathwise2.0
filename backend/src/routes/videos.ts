@@ -12,11 +12,52 @@ import { prisma } from "../lib/prisma.js";
 import { env } from "../lib/env.js";
 import { isGuestUser } from "../lib/guests.js";
 import { rankedVideosFor } from "../lib/videos.js";
+import { buildFeed } from "../lib/fyp.js";
 import { validateVideoInput } from "../lib/videoModel.js";
 import { parseStoredList } from "../lib/onboardingModel.js";
 import { track } from "../lib/analytics.js";
 
 export default async function videoRoutes(app: FastifyInstance) {
+  // Personalized FYP (Phase 15): the full-context feed — mastery gaps,
+  // course topics, taste from likes/saves, watch-history demotion — with a
+  // "quiz yourself" action wherever a video maps onto the learner's own
+  // topics. Recommendations route back into learning, not endless scroll.
+  app.get(
+    "/api/fyp",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const feed = await buildFeed(req.user.sub);
+
+      const engagements = await prisma.videoEngagement.findMany({
+        where: { userId: req.user.sub, kind: { in: ["like", "save"] } },
+        select: { videoId: true, kind: true },
+      });
+      const liked = new Set(
+        engagements.filter((e) => e.kind === "like").map((e) => e.videoId)
+      );
+      const saved = new Set(
+        engagements.filter((e) => e.kind === "save").map((e) => e.videoId)
+      );
+
+      return reply.send({
+        feed: feed.slice(0, 20).map((f) => ({
+          id: f.video.id,
+          title: f.video.title,
+          creator: f.video.creator,
+          url: f.video.url,
+          thumbnailUrl: f.video.thumbnailUrl,
+          subject: f.video.subject,
+          topics: f.video.topics,
+          durationSec: f.video.durationSec,
+          reason: f.reason,
+          likedByMe: liked.has(f.video.id),
+          savedByMe: saved.has(f.video.id),
+          action: f.action,
+        })),
+      });
+    }
+  );
+
   // The shelf: ranked for the learner, filterable by subject.
   app.get(
     "/api/videos",

@@ -13,6 +13,20 @@ The 2.0 roadmap (see decision 0002) now drives development. Progress:
   disables the Garden XP economy server-side; the UI hides every entry point.
   Flags live in `lib/features.ts`, exposed at `GET /api/config`, consumed by
   the frontend `FeaturesProvider`.
+- **Phase 12 (execution order) — Personalized Educational FYP: done.**
+  `GET /api/fyp` ranks the curated catalog against the learner's full
+  derived context: mastery gaps first (35% — this is a learning product,
+  not an attention product), then course topics (25%), taste learned from
+  likes/saves (20%), declared interests and subject (10% each). Watched
+  videos are demoted (×0.4), never hidden. Every item carries a
+  plain-language reason, and — the roadmap's core requirement — the feed
+  routes BACK into learning: wherever a video maps onto one of the
+  learner's own topics, the item carries a "quiz yourself" action naming
+  the weakest matching topic, and starting it is one tap (watch → quiz →
+  mastery moves → feed re-ranks). Pure ranking + bridge in
+  `lib/fypModel.ts` (unit-tested); signal assembly in `lib/fyp.ts` reads
+  derived data only. The Videos page's "For you" tab is now the FYP. E2e:
+  `scripts/smoke-fyp.mjs`.
 - **Phase 11 (execution order) — Curated Educational Videos: done.**
   Editorial catalog only — user uploads stay off until the flagged creator
   phase. `CuratedVideo` carries the roadmap's metadata (title, creator,

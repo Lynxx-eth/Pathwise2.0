@@ -1,14 +1,17 @@
-// Curated educational videos (PATHWISE 2.0 Phase 14). Editorial picks
-// matched to what the learner is studying — every card says WHY it's shown.
-// Links open on the source site with full attribution; likes/saves feed the
-// personalized feed of the next phase.
+// Curated educational videos + personalized feed (PATHWISE 2.0 Phases
+// 14-15). "For you" is the FYP: ranked on mastery gaps, course topics and
+// taste from likes/saves, with a "quiz yourself" bridge back into the
+// learning loop wherever a video maps onto the learner's own topics.
+// Subject chips browse the raw curated catalog. Links open at the source
+// with full attribution.
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
-import { SparklesIcon } from "../components/icons";
-import { EmptyState, ErrorState, SkeletonRows } from "../components/states";
+import { PuzzleIcon, SparklesIcon } from "../components/icons";
+import { EmptyState, ErrorState, InlineError, SkeletonRows } from "../components/states";
 
 interface VideoRow {
   id: string;
@@ -18,11 +21,13 @@ interface VideoRow {
   thumbnailUrl: string | null;
   subject: string;
   topics: string[];
-  difficulty: number | null;
+  difficulty?: number | null;
   durationSec: number | null;
   reason: string | null;
   likedByMe: boolean;
   savedByMe: boolean;
+  /** FYP only: the watch → quiz bridge. */
+  action?: { topicId: string; courseId: string; topicName: string } | null;
 }
 
 function minutes(sec: number | null): string | null {
@@ -33,11 +38,21 @@ function minutes(sec: number | null): string | null {
 
 export default function Videos() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [subject, setSubject] = useState<string | null>(null);
-  const { data, loading, error, reload, setData } = useApi<{
-    videos: VideoRow[];
-    subjects: string[];
-  }>(subject ? `/api/videos?subject=${encodeURIComponent(subject)}` : "/api/videos", [subject]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // The catalog powers the subject chips + filtered browsing; the FYP
+  // powers the "For you" tab. Both stay loaded so switching is instant.
+  const shelf = useApi<{ videos: VideoRow[]; subjects: string[] }>(
+    subject ? `/api/videos?subject=${encodeURIComponent(subject)}` : "/api/videos",
+    [subject]
+  );
+  const fyp = useApi<{ feed: VideoRow[] }>("/api/fyp");
+
+  const showingFeed = subject === null;
+  const { loading, error, reload } = showingFeed ? fyp : shelf;
+  const rows = showingFeed ? fyp.data?.feed ?? [] : shelf.data?.videos ?? [];
 
   async function engage(v: VideoRow, kind: "like" | "save") {
     try {
@@ -45,22 +60,39 @@ export default function Videos() {
         `/api/videos/${v.id}/engage`,
         { kind }
       );
-      if (data) {
-        setData({
-          ...data,
-          videos: data.videos.map((row) =>
-            row.id === v.id
-              ? {
-                  ...row,
-                  likedByMe: kind === "like" ? res.active : row.likedByMe,
-                  savedByMe: kind === "save" ? res.active : row.savedByMe,
-                }
-              : row
-          ),
-        });
+      const patch = (row: VideoRow) =>
+        row.id === v.id
+          ? {
+              ...row,
+              likedByMe: kind === "like" ? res.active : row.likedByMe,
+              savedByMe: kind === "save" ? res.active : row.savedByMe,
+            }
+          : row;
+      if (shelf.data) {
+        shelf.setData({ ...shelf.data, videos: shelf.data.videos.map(patch) });
+      }
+      if (fyp.data) {
+        fyp.setData({ feed: fyp.data.feed.map(patch) });
       }
     } catch {
       // Guests get a 403 — the buttons are hidden for them anyway.
+    }
+  }
+
+  async function quizFrom(v: VideoRow) {
+    if (!v.action) return;
+    setActionError(null);
+    try {
+      const res = await api.post<{ sessionId: string }>("/api/quiz/sessions", {
+        courseId: v.action.courseId,
+        kind: "practice",
+        topicId: v.action.topicId,
+      });
+      navigate(`/quiz/${res.sessionId}`);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Couldn't start a quiz."
+      );
     }
   }
 
@@ -83,7 +115,7 @@ export default function Videos() {
         </div>
       </div>
 
-      {(data?.subjects.length ?? 0) > 0 && (
+      {(shelf.data?.subjects.length ?? 0) > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           <button
             className={subject === null ? "pill pill-coral" : "pill pill-muted"}
@@ -92,7 +124,7 @@ export default function Videos() {
           >
             For you
           </button>
-          {data!.subjects.map((s) => (
+          {shelf.data!.subjects.map((s) => (
             <button
               key={s}
               className={subject === s ? "pill pill-coral" : "pill pill-muted"}
@@ -105,11 +137,13 @@ export default function Videos() {
         </div>
       )}
 
+      <InlineError message={actionError} />
+
       {loading ? (
         <SkeletonRows rows={4} height={96} />
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
-      ) : (data?.videos.length ?? 0) === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={<SparklesIcon cls="icon-lg" />}
           title="Nothing here yet"
@@ -117,7 +151,7 @@ export default function Videos() {
         />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {data!.videos.map((v) => (
+          {rows.map((v) => (
             <div key={v.id} className="card" style={{ padding: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
               <a
                 href={v.url}
@@ -173,7 +207,7 @@ export default function Videos() {
                   </span>
                 )}
                 {!user?.isGuest && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                     <button
                       className={v.likedByMe ? "pill pill-coral" : "pill pill-muted"}
                       style={{ cursor: "pointer", border: "none", fontSize: 11.5 }}
@@ -190,6 +224,16 @@ export default function Videos() {
                     >
                       🔖 {v.savedByMe ? "Saved" : "Save"}
                     </button>
+                    {v.action && (
+                      <button
+                        className="btn btn-primary"
+                        style={{ fontSize: 11.5, padding: "4px 10px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                        onClick={() => quizFrom(v)}
+                        title="A short quiz on this topic updates your mastery"
+                      >
+                        <PuzzleIcon cls="icon-sm" /> Quiz yourself on {v.action.topicName}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
