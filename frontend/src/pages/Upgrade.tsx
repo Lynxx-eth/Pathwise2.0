@@ -206,48 +206,13 @@ export default function Upgrade() {
 
         {!isPremium && data && (
           <>
-            <div
-              className="segmented"
-              role="group"
-              aria-label="Billing interval"
-              style={{ marginBottom: 18 }}
-            >
-              {data.plans.map((p) => (
-                <button
-                  key={p.interval}
-                  onClick={() => setInterval(p.interval)}
-                  aria-pressed={interval === p.interval}
-                >
-                  {p.label}
-                  {p.savingsPct > 0 && ` · save ${p.savingsPct}%`}
-                </button>
-              ))}
-            </div>
-
             <button
               className="btn btn-primary btn-block"
-              style={{ marginBottom: 10 }}
-              onClick={checkout}
-              disabled={busy}
+              style={{ marginBottom: 10, cursor: "not-allowed", opacity: 0.8 }}
+              disabled
             >
-              {busy
-                ? "Starting…"
-                : `Upgrade — ${price(selected?.priceCents ?? 0)}/${
-                    interval === "annual" ? "yr" : "mo"
-                  }`}
+              Price coming soon / Sit tight
             </button>
-
-            {data.provider === "mock" && (
-              <p style={{ fontSize: 11.5, color: "var(--ink-faint)", marginBottom: 10 }}>
-                Test mode — no payment will be taken.
-              </p>
-            )}
-
-            {interval === "monthly" && annual && annual.savingsPct > 0 && (
-              <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-                The annual plan saves {annual.savingsPct}%.
-              </p>
-            )}
           </>
         )}
 

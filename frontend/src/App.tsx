@@ -27,6 +27,7 @@ import PostView from "./pages/PostView";
 import Buddies from "./pages/Buddies";
 import Messages from "./pages/Messages";
 import Videos from "./pages/Videos";
+import VideoWatch from "./pages/VideoWatch";
 import CreatorStudio from "./pages/CreatorStudio";
 import StudyRoom from "./pages/StudyRoom";
 import TopicView from "./pages/TopicView";
@@ -129,6 +130,7 @@ function AppRoutes() {
       <Route path="/messages/:conversationId" element={<Protected><Messages /></Protected>} />
       {/* Curated educational videos (PATHWISE 2.0 Phase 14). */}
       <Route path="/videos" element={<Protected><Videos /></Protected>} />
+      <Route path="/videos/:id" element={<Protected><VideoWatch /></Protected>} />
       {/* Creator Studio (Phase 16) — dark until the server flag flips. */}
       <Route path="/creator" element={<Protected><FeatureGate flag="userVideoPosting"><CreatorStudio /></FeatureGate></Protected>} />
       {/* Study buddy rooms (Phases 11/19 MVP). */}

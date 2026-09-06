@@ -153,13 +153,10 @@ export default function Videos() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {rows.map((v) => (
             <div key={v.id} className="card" style={{ padding: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <a
-                href={v.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                onClick={() => watched(v)}
-                style={{ flexShrink: 0 }}
-                aria-label={`Watch ${v.title} on the source site`}
+              <div
+                style={{ flexShrink: 0, cursor: "pointer" }}
+                onClick={() => { watched(v); navigate(`/videos/${v.id}`); }}
+                aria-label={`Watch ${v.title} inside Pathwise`}
               >
                 {v.thumbnailUrl ? (
                   <img
@@ -187,17 +184,14 @@ export default function Videos() {
                     {v.subject}
                   </div>
                 )}
-              </a>
+              </div>
               <div style={{ flex: 1, minWidth: 220 }}>
-                <a
-                  href={v.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  onClick={() => watched(v)}
-                  style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)" }}
+                <div
+                  onClick={() => { watched(v); navigate(`/videos/${v.id}`); }}
+                  style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)", cursor: "pointer" }}
                 >
                   {v.title}
-                </a>
+                </div>
                 <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 3 }}>
                   {[v.creator, v.subject, minutes(v.durationSec)].filter(Boolean).join(" · ")}
                 </div>
