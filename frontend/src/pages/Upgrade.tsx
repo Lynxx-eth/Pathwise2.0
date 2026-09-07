@@ -54,17 +54,12 @@ const benefits = [
   },
 ];
 
-function price(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 export default function Upgrade() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { refresh } = useAuth();
   const { data, loading, reload } = useApi<PlansResponse>("/api/billing/plans");
 
-  const [interval, setInterval] = useState<"monthly" | "annual">("annual");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -102,22 +97,6 @@ export default function Upgrade() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  async function checkout() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api.post<{ url: string; mock: boolean }>(
-        "/api/billing/checkout",
-        { interval }
-      );
-      // Both providers hand back a URL; the mock one points back into the app.
-      window.location.href = res.url;
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't start checkout.");
-      setBusy(false);
-    }
-  }
-
   async function cancel() {
     setBusy(true);
     setError(null);
@@ -145,8 +124,6 @@ export default function Upgrade() {
   }
 
   const isPremium = data?.entitlements.isPremium ?? false;
-  const selected = data?.plans.find((p) => p.interval === interval);
-  const annual = data?.plans.find((p) => p.interval === "annual");
 
   return (
     <div className="auth-wrap">
