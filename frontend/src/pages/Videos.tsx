@@ -201,8 +201,8 @@ export default function Videos() {
         <div>
           <h1 className="page-title">Videos</h1>
           <p className="page-sub">
-            Hand-picked explanations matched to your courses. Links open at
-            the source — full credit to the creators.
+            Explanations matched to your courses — watch picks right here,
+            search all of YouTube, full credit to the creators.
           </p>
         </div>
       </div>

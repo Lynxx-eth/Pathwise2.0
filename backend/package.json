@@ -16,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:turso-deploy": "node scripts/apply-migration-manually.mjs",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
   },
