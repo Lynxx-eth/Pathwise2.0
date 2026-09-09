@@ -21,6 +21,7 @@ import type {
 import {
   askSystemPrompt,
   classifyMaterialPrompt,
+  communityTopicPrompt,
   explainTopicPrompt,
   extractTopicsPrompt,
   generateQuizPrompt,
@@ -29,11 +30,14 @@ import {
   socraticSystemPrompt,
   transcribeImagePrompt,
   validateBreakdown,
+  validateCommunityVerdict,
   validateGrade,
   validateQuestions,
   validateTopics,
   validateVerdict,
+  validateVideoQuery,
   validateWrittenQuestions,
+  videoQueryPrompt,
   writtenQuestionsPrompt,
 } from "./prompts.js";
 import { env } from "../lib/env.js";
@@ -190,6 +194,24 @@ export class OpenAIProvider implements AIProvider {
       user
     );
     return { value: validateWrittenQuestions(parsed), usage };
+  }
+
+  async classifyCommunityTopic(
+    name: string,
+    description: string
+  ): Promise<AIResult<{ educational: boolean; reason: string }>> {
+    const { system, user } = communityTopicPrompt(name, description);
+    const { parsed, usage } = await this.json<Record<string, unknown>>(
+      system,
+      user
+    );
+    return { value: validateCommunityVerdict(parsed), usage };
+  }
+
+  async refineVideoQuery(query: string): Promise<AIResult<string>> {
+    const { system, user } = videoQueryPrompt(query);
+    const { parsed, usage } = await this.json<{ query?: unknown }>(system, user);
+    return { value: validateVideoQuery(parsed, query), usage };
   }
 
   async gradeWrittenAnswer(

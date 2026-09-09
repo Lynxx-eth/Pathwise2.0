@@ -16,7 +16,13 @@ import {
   POST_KINDS,
   REPORT_REASONS,
   screenText,
+  slugify,
 } from "../lib/communityModel.js";
+import { parseStoredList } from "../lib/onboardingModel.js";
+import {
+  AIBudgetExceededError,
+  classifyCommunityTopic,
+} from "../lib/aiMeter.js";
 import { track } from "../lib/analytics.js";
 
 const postSchema = z.object({
@@ -49,7 +55,10 @@ export default async function communityRoutes(app: FastifyInstance) {
     return isGuestUser(userId);
   }
 
-  // The subject tree with member counts and this user's memberships.
+  // Communities matched to THIS learner (no hardcoded catalog): `?q=` is a
+  // free search across all communities; without it, each entry carries a
+  // `relevant` flag computed from the learner's field, subjects, interests
+  // and course topic names, so the UI can show their world by default.
   app.get(
     "/api/communities",
     { preHandler: [app.authenticate] },
@@ -57,8 +66,19 @@ export default async function communityRoutes(app: FastifyInstance) {
       if (await rejectGuests(req.user.sub)) {
         return reply.code(403).send({ error: GUEST_MESSAGE });
       }
-      const [communities, mine] = await Promise.all([
+      const { q } = req.query as { q?: string };
+      const search = (q ?? "").trim().slice(0, 80);
+
+      const [communities, mine, profile, topics] = await Promise.all([
         prisma.community.findMany({
+          where: search
+            ? {
+                OR: [
+                  { name: { contains: search } },
+                  { description: { contains: search } },
+                ],
+              }
+            : undefined,
           orderBy: { name: "asc" },
           include: {
             _count: { select: { members: true, posts: { where: { status: "visible" } } } },
@@ -68,8 +88,33 @@ export default async function communityRoutes(app: FastifyInstance) {
           where: { userId: req.user.sub },
           select: { communityId: true },
         }),
+        prisma.learnerProfile.findUnique({ where: { userId: req.user.sub } }),
+        prisma.topic.findMany({
+          where: { knowledgeMap: { course: { userId: req.user.sub } } },
+          select: { name: true },
+          take: 100,
+        }),
       ]);
       const joined = new Set(mine.map((m) => m.communityId));
+
+      // The learner's derived interest terms — same privacy posture as
+      // matching: names and self-declared text only, never files.
+      const terms = [
+        profile?.field ?? "",
+        ...parseStoredList(profile?.subjectsJson ?? "[]"),
+        ...parseStoredList(profile?.communityInterestsJson ?? "[]"),
+        ...topics.map((t) => t.name),
+      ]
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length >= 3);
+
+      const isRelevant = (c: { name: string; description: string | null }) => {
+        const hay = `${c.name} ${c.description ?? ""}`.toLowerCase();
+        return terms.some(
+          (t) => hay.includes(t) || t.includes(c.name.toLowerCase())
+        );
+      };
+
       return reply.send({
         communities: communities.map((c) => ({
           id: c.id,
@@ -80,7 +125,82 @@ export default async function communityRoutes(app: FastifyInstance) {
           members: c._count.members,
           posts: c._count.posts,
           joined: joined.has(c.id),
+          relevant: joined.has(c.id) || isRelevant(c),
         })),
+        searched: search.length > 0,
+      });
+    }
+  );
+
+  // Create a community — behind the educational guardrail. The AI checks
+  // that the title/description describe a real academic subject, course or
+  // learning topic; anything else is refused with the exact product copy.
+  app.post(
+    "/api/communities",
+    {
+      preHandler: [app.authenticate],
+      config: { rateLimit: { max: 5, timeWindow: "10 minutes" } },
+    },
+    async (req, reply) => {
+      if (await rejectGuests(req.user.sub)) {
+        return reply.code(403).send({ error: GUEST_MESSAGE });
+      }
+      const parsed = z
+        .object({
+          name: z.string().min(3).max(60),
+          description: z.string().max(300).optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Give the community a name (3-60 chars)." });
+      }
+      const name = parsed.data.name.replace(/\s+/g, " ").trim();
+      const description = (parsed.data.description ?? "").trim();
+
+      const screened = screenText(`${name}\n${description}`);
+      if (!screened.ok) {
+        return reply.code(400).send({ error: screened.reason });
+      }
+
+      let verdict;
+      try {
+        verdict = await classifyCommunityTopic(req.user.sub, name, description);
+      } catch (err) {
+        if (err instanceof AIBudgetExceededError) {
+          return reply.code(429).send({ error: err.message });
+        }
+        throw err;
+      }
+      if (!verdict.educational) {
+        return reply.code(400).send({
+          error: "Please create a community that aligns with any course or subject.",
+        });
+      }
+
+      const slug = slugify(name);
+      const existing = await prisma.community.findFirst({
+        where: { OR: [{ slug }, { name }] },
+        select: { id: true },
+      });
+      if (existing) {
+        return reply
+          .code(409)
+          .send({ error: "A community with that name already exists." });
+      }
+
+      const community = await prisma.community.create({
+        data: { name, slug, description },
+      });
+      // The founder is its first member.
+      await prisma.communityMember.create({
+        data: { communityId: community.id, userId: req.user.sub },
+      });
+      await track(req.user.sub, "community_created", {
+        communityId: community.id,
+        slug,
+      });
+      return reply.code(201).send({
+        community: { id: community.id, slug, name, description },
       });
     }
   );
@@ -483,7 +603,17 @@ export default async function communityRoutes(app: FastifyInstance) {
       take: 100,
     });
     // Attach the reported content so review doesn't need DB access.
-    const out = [];
+    // (Explicitly typed: the relaxed production build has noImplicitAny off,
+    // which turns a bare [] into never[].)
+    const out: {
+      id: string;
+      targetType: string;
+      targetId: string;
+      reason: string;
+      detail: string | null;
+      content: string | null;
+      createdAt: Date;
+    }[] = [];
     for (const r of reports) {
       let content: string | null = null;
       if (r.targetType === "post") {

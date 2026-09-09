@@ -23,7 +23,12 @@ import { recordSocraticDepth } from "../lib/mastery.js";
 import { isGuestUser } from "../lib/guests.js";
 import { getConceptContext } from "../lib/knowledgeLayer.js";
 import { stuckLevel } from "../lib/socraticAdaptModel.js";
-import { awardXp, grantBadge, XP } from "../lib/gamification.js";
+import {
+  awardXp,
+  grantBadge,
+  XP,
+  type AwardedBadge,
+} from "../lib/gamification.js";
 import { track } from "../lib/analytics.js";
 import type { ChatMessage, SocraticContext } from "../ai/types.js";
 import type { SocraticMessage } from "@prisma/client";
@@ -364,7 +369,9 @@ export default async function socraticRoutes(app: FastifyInstance) {
         });
       }
 
-      const newBadges = [];
+      // Explicitly typed: the relaxed production build (noImplicitAny off)
+      // infers a bare [] as never[].
+      const newBadges: AwardedBadge[] = [];
       if (meaningful) {
         const award = await awardXp(
           req.user.sub,

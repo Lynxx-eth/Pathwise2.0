@@ -51,6 +51,7 @@ export type EventName =
   | "session_start"
   | "notification_sent"
   // Communities (PATHWISE 2.0 Phase 9)
+  | "community_created"
   | "community_joined"
   | "community_post_created"
   | "community_reply_created"

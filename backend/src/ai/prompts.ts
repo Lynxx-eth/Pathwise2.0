@@ -446,6 +446,54 @@ export function gradeWrittenPrompt(
   return { system, user };
 }
 
+export function communityTopicPrompt(
+  name: string,
+  description: string
+): { system: string; user: string } {
+  const system =
+    "You screen new community proposals for a student study app. Decide " +
+    "whether the community is centered on a legitimate academic subject, a " +
+    "school/university course, an exam, or an educational learning topic " +
+    "(study-skills communities count). General social/entertainment/" +
+    "commercial communities do not. " +
+    'Respond as JSON: {"educational": boolean, "reason": string}. ' +
+    UNTRUSTED_INPUT_RULE;
+  const user = `Proposed community\nName: ${name}\nDescription: ${description || "(none)"}`;
+  return { system, user };
+}
+
+/** Unreadable verdicts fail OPEN (educational) — screening, not a wall. */
+export function validateCommunityVerdict(parsed: {
+  educational?: unknown;
+  reason?: unknown;
+}): { educational: boolean; reason: string } {
+  return {
+    educational: parsed.educational !== false,
+    reason: String(parsed.reason ?? "").slice(0, 300),
+  };
+}
+
+export function videoQueryPrompt(query: string): { system: string; user: string } {
+  const system =
+    "You turn a student's free-text request into ONE targeted YouTube search " +
+    "string for educational content. Extract the academic intent (subject, " +
+    "topic, level, exam board if named) and produce a concise search query " +
+    "that favors lectures, explainers and exam prep over entertainment. " +
+    'Respond as JSON: {"query": string}. ' +
+    UNTRUSTED_INPUT_RULE;
+  const user = `Student request: ${query.slice(0, 300)}`;
+  return { system, user };
+}
+
+/** A useless refinement falls back to the raw query. */
+export function validateVideoQuery(
+  parsed: { query?: unknown },
+  fallback: string
+): string {
+  const q = String(parsed.query ?? "").trim().slice(0, 200);
+  return q.length >= 3 ? q : fallback;
+}
+
 /** Grading fails kind: an unreadable model reply becomes "close" + honesty. */
 export function validateGrade(parsed: Partial<WrittenGrade>): WrittenGrade {
   const verdict =

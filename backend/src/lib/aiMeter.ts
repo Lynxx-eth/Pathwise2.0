@@ -36,7 +36,10 @@ export type AIOperation =
   | "explain_topic"
   | "ask_reply"
   | "written_questions"
-  | "grade_written";
+  | "grade_written"
+  // Community-creation guardrail + video search intent.
+  | "community_check"
+  | "video_query";
 
 /** Raised when a user has burned through their daily AI budget. */
 export class AIBudgetExceededError extends Error {
@@ -248,6 +251,23 @@ export function gradeWrittenAnswer(
   return meter("grade_written", userId, () =>
     ai.gradeWrittenAnswer(question, referenceAnswer, studentAnswer)
   );
+}
+
+export function classifyCommunityTopic(
+  userId: string | null,
+  name: string,
+  description: string
+): Promise<{ educational: boolean; reason: string }> {
+  return meter("community_check", userId, () =>
+    ai.classifyCommunityTopic(name, description)
+  );
+}
+
+export function refineVideoQuery(
+  userId: string | null,
+  query: string
+): Promise<string> {
+  return meter("video_query", userId, () => ai.refineVideoQuery(query));
 }
 
 /** Aggregate spend for the ops dashboard / cost alerting. */

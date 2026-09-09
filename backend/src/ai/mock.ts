@@ -287,6 +287,29 @@ export class MockAIProvider implements AIProvider {
     );
   }
 
+  async classifyCommunityTopic(
+    name: string,
+    description: string
+  ): Promise<AIResult<{ educational: boolean; reason: string }>> {
+    // Deterministic screen so the guardrail is testable free: obvious
+    // non-educational themes are refused, everything else passes.
+    const text = `${name} ${description}`.toLowerCase();
+    const nonEducational =
+      /\b(meme|memes|gambling|casino|betting|crypto pump|dating|hookup|nsfw|fan club|gossip|giveaway)\b/.test(
+        text
+      );
+    return wrap({
+      educational: !nonEducational,
+      reason: nonEducational
+        ? "Reads as a non-educational community."
+        : "Reads as a course/subject community.",
+    });
+  }
+
+  async refineVideoQuery(query: string): Promise<AIResult<string>> {
+    return wrap(`${query.trim()} explained tutorial`.trim());
+  }
+
   async gradeWrittenAnswer(
     question: string,
     referenceAnswer: string,

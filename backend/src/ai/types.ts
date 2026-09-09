@@ -178,6 +178,21 @@ export interface AIProvider {
   ): Promise<AIResult<WrittenGrade>>;
 
   /**
+   * Community-creation guardrail: does this title/description describe a
+   * legitimate academic subject, school course, or educational topic?
+   */
+  classifyCommunityTopic(
+    name: string,
+    description: string
+  ): Promise<AIResult<{ educational: boolean; reason: string }>>;
+
+  /**
+   * Video search assistant: turn a learner's free-text query into a
+   * targeted educational search string (academic intent extraction).
+   */
+  refineVideoQuery(query: string): Promise<AIResult<string>>;
+
+  /**
    * PATHWISE 2.0 Phase 5: turn a photo/screenshot of study material (notes,
    * whiteboard, textbook page, slide, diagram) into clean structured text.
    * The result feeds the SAME text pipeline as documents — screening, topic

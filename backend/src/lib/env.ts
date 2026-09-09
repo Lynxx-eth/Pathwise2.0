@@ -49,6 +49,18 @@ const schema = z.object({
   // local DATABASE_URL file, which survives restarts/redeploys.
   TURSO_DATABASE_URL: z.string().optional(),
   TURSO_AUTH_TOKEN: z.string().optional(),
+  // Platform alias: some deploys provide the libsql URL as DATABASE_URL with
+  // its token in DATABASE_AUTH_TOKEN instead of the TURSO_* pair. Honored in
+  // lib/prisma.ts; TURSO_* wins when both are set.
+  DATABASE_AUTH_TOKEN: z.string().optional(),
+
+  // Deployed frontend origin (e.g. https://pathwise.vercel.app). Used for
+  // email links (falls back to APP_URL) and appended to the CORS allowlist.
+  FRONTEND_URL: z.string().optional(),
+
+  // YouTube Data API v3 key for video search + interest-mapped suggestions.
+  // Empty = the Videos surface serves only the curated catalog.
+  YOUTUBE_API_KEY: z.string().default(""),
 
   // --- AI cost metering (Step 1 item 6) -----------------------------------
   // USD per 1M tokens for the configured model, used to estimate spend per
@@ -139,12 +151,21 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+// FRONTEND_URL (the production key) takes precedence over APP_URL for every
+// link the backend builds (reset emails, referral links, checkout returns).
+if (parsed.data.FRONTEND_URL) {
+  parsed.data.APP_URL = parsed.data.FRONTEND_URL.replace(/\/$/, "");
+}
+
 export const env = parsed.data;
 
-/** CORS_ORIGIN split into individual origins. */
-export const corsOrigins: string[] = env.CORS_ORIGIN.split(",")
-  .map((o) => o.trim())
-  .filter((o) => o.length > 0);
+/** CORS_ORIGIN split into individual origins; FRONTEND_URL always included. */
+export const corsOrigins: string[] = [
+  ...env.CORS_ORIGIN.split(","),
+  ...(env.FRONTEND_URL ? [env.FRONTEND_URL] : []),
+]
+  .map((o) => o.trim().replace(/\/$/, ""))
+  .filter((o, i, all) => o.length > 0 && all.indexOf(o) === i);
 
 // Boot-time nagging beats a silent weak deployment. Not fatal — dev secrets
 // are legitimately short — but production shouldn't get to ignore it quietly.

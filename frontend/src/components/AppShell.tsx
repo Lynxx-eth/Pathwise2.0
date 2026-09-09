@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   GamepadIcon,
   ArrowLeftIcon,
+  BellIcon,
   MailIcon,
   UsersIcon,
   UploadIcon,
@@ -101,7 +102,7 @@ function NotificationBell() {
         }
         aria-expanded={open}
       >
-        <MailIcon cls="icon" />
+        <BellIcon cls="icon" />
         {unread > 0 && <span className="bell-dot">{unread > 9 ? "9+" : unread}</span>}
       </button>
 
