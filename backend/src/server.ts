@@ -25,7 +25,7 @@ import roomRoutes from "./routes/rooms.js";
 import errorRoutes from "./routes/errors.js";
 import topicRoutes from "./routes/topics.js";
 import opsRoutes from "./routes/ops.js";
-import { ai } from "./ai/index.js";
+import { ai, routingSummary } from "./ai/index.js";
 import { email } from "./email/index.js";
 import { billing } from "./lib/billing.js";
 import { seedBadges } from "./lib/gamification.js";
@@ -135,6 +135,8 @@ await app.register(opsRoutes);
 app.get("/api/health", async () => ({
   status: "ok",
   aiProvider: ai.name,
+  // Per-task provider routing (tutor/quiz/moderation/extract).
+  aiRouting: routingSummary(),
   emailProvider: email.name,
   billingProvider: billing.name,
 }));

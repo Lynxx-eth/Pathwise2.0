@@ -24,12 +24,41 @@ const schema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   PORT: z.coerce.number().default(4000),
   // "gemini" is the testing-phase primary (PATHWISE 2.0 Phase 3), but nothing
-  // outside src/ai/ may depend on which provider is active.
-  AI_PROVIDER: z.enum(["mock", "openai", "gemini"]).default("mock"),
+  // outside src/ai/ may depend on which provider is active. Four real
+  // providers are supported: openai, gemini, claude (Anthropic), grok (xAI).
+  AI_PROVIDER: z
+    .enum(["mock", "openai", "gemini", "claude", "grok"])
+    .default("mock"),
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GEMINI_API_KEY: z.string().default(""),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  ANTHROPIC_API_KEY: z.string().default(""),
+  CLAUDE_MODEL: z.string().default("claude-opus-5"),
+  XAI_API_KEY: z.string().default(""),
+  GROK_MODEL: z.string().default("grok-4"),
+
+  // --- Per-task provider routing (optional) --------------------------------
+  // Route groups of AI operations to different providers — the right model
+  // for each job at ~1x cost, instead of one model for everything. Empty =
+  // fall back to AI_PROVIDER. A route whose provider has no API key falls
+  // back to AI_PROVIDER too (never silently to mock in production).
+  //   TUTOR:      socratic_reply, ask_reply, explain_topic (learning quality)
+  //   QUIZ:       generate_quiz, written_questions, grade_written
+  //   MODERATION: moderate, community_check (high volume, cheap+fast)
+  //   EXTRACT:    extract_topics, transcribe_image, video_query
+  AI_PROVIDER_TUTOR: z
+    .enum(["", "mock", "openai", "gemini", "claude", "grok"])
+    .default(""),
+  AI_PROVIDER_QUIZ: z
+    .enum(["", "mock", "openai", "gemini", "claude", "grok"])
+    .default(""),
+  AI_PROVIDER_MODERATION: z
+    .enum(["", "mock", "openai", "gemini", "claude", "grok"])
+    .default(""),
+  AI_PROVIDER_EXTRACT: z
+    .enum(["", "mock", "openai", "gemini", "claude", "grok"])
+    .default(""),
   // Image uploads travel to the vision provider base64-encoded in one request
   // (2.0 Phase 5) — cap them tighter than documents.
   MAX_IMAGE_MB: z.coerce.number().min(1).max(20).default(8),
