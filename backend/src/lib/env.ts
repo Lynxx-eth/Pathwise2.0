@@ -33,6 +33,9 @@ const schema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GEMINI_API_KEY: z.string().default(""),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  // Tried once when GEMINI_MODEL stays overloaded through every retry —
+  // hot new models 503 under demand spikes. Empty disables the fallback.
+  GEMINI_FALLBACK_MODEL: z.string().default("gemini-2.5-flash"),
   ANTHROPIC_API_KEY: z.string().default(""),
   CLAUDE_MODEL: z.string().default("claude-opus-5"),
   XAI_API_KEY: z.string().default(""),

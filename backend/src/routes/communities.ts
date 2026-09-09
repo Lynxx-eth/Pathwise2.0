@@ -23,6 +23,7 @@ import {
   AIBudgetExceededError,
   classifyCommunityTopic,
 } from "../lib/aiMeter.js";
+import { AIUnavailableError } from "../ai/resilience.js";
 import { track } from "../lib/analytics.js";
 
 const postSchema = z.object({
@@ -168,6 +169,9 @@ export default async function communityRoutes(app: FastifyInstance) {
       } catch (err) {
         if (err instanceof AIBudgetExceededError) {
           return reply.code(429).send({ error: err.message });
+        }
+        if (err instanceof AIUnavailableError) {
+          return reply.code(503).send({ error: err.message });
         }
         throw err;
       }

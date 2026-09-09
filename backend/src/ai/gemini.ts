@@ -43,9 +43,17 @@ import {
   writtenQuestionsPrompt,
 } from "./prompts.js";
 import { env } from "../lib/env.js";
+import {
+  AIUnavailableError,
+  backoffMs,
+  isRetryableStatus,
+  MAX_ATTEMPTS,
+} from "./resilience.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const REQUEST_TIMEOUT_MS = 60_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface GeminiResponse {
   candidates?: {
@@ -67,7 +75,9 @@ export class GeminiProvider implements AIProvider {
     this.model = env.GEMINI_MODEL;
   }
 
-  private async generate(
+  /** One raw request against one model. Throws on any failure. */
+  private async requestOnce(
+    model: string,
     system: string,
     contents: {
       role: "user" | "model";
@@ -78,7 +88,7 @@ export class GeminiProvider implements AIProvider {
     }[],
     jsonMode: boolean
   ): Promise<{ text: string; usage: TokenUsage }> {
-    const url = `${API_BASE}/models/${this.model}:generateContent`;
+    const url = `${API_BASE}/models/${model}:generateContent`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -98,10 +108,11 @@ export class GeminiProvider implements AIProvider {
 
     const data = (await res.json().catch(() => ({}))) as GeminiResponse;
     if (!res.ok) {
-      // Meterable failure — aiMeter records the message on the AIUsage row.
-      throw new Error(
+      const err = new Error(
         `Gemini ${res.status}: ${data.error?.message ?? res.statusText}`
-      );
+      ) as Error & { status?: number };
+      err.status = res.status;
+      throw err;
     }
 
     const text =
@@ -111,11 +122,53 @@ export class GeminiProvider implements AIProvider {
     return {
       text,
       usage: {
-        model: this.model,
+        model,
         promptTokens: data.usageMetadata?.promptTokenCount ?? 0,
         completionTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
       },
     };
+  }
+
+  /**
+   * Resilient generate: retries transient failures (429/5xx overload and
+   * network errors — launch-day models 503 under "high demand" spikes and
+   * hotspot connections blip) with exponential backoff; after the primary
+   * model's retries are exhausted, tries GEMINI_FALLBACK_MODEL once; only
+   * then raises a typed, user-friendly AIUnavailableError. Non-transient
+   * errors (400 bad key, 404 bad model) throw immediately.
+   */
+  private async generate(
+    system: string,
+    contents: Parameters<GeminiProvider["requestOnce"]>[2],
+    jsonMode: boolean
+  ): Promise<{ text: string; usage: TokenUsage }> {
+    let lastDetail = "";
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.requestOnce(this.model, system, contents, jsonMode);
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        const transient = status === undefined || isRetryableStatus(status);
+        if (!transient) throw err;
+        lastDetail = err instanceof Error ? err.message : String(err);
+        if (attempt < MAX_ATTEMPTS - 1) await sleep(backoffMs(attempt));
+      }
+    }
+
+    // Primary model stayed down — one shot on the fallback model.
+    const fallback = env.GEMINI_FALLBACK_MODEL;
+    if (fallback && fallback !== this.model) {
+      try {
+        console.warn(
+          `⚠️  ${this.model} unavailable (${lastDetail.slice(0, 80)}) — trying ${fallback}.`
+        );
+        return await this.requestOnce(fallback, system, contents, jsonMode);
+      } catch (err) {
+        lastDetail = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    throw new AIUnavailableError(lastDetail);
   }
 
   private async json<T>(

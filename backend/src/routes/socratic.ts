@@ -13,6 +13,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { env } from "../lib/env.js";
 import { socraticReply, AIBudgetExceededError } from "../lib/aiMeter.js";
+import { AIUnavailableError } from "../ai/resilience.js";
 import {
   detectAnswerLeak,
   detectExtractionAttempt,
@@ -283,6 +284,9 @@ export default async function socraticRoutes(app: FastifyInstance) {
       } catch (err) {
         if (err instanceof AIBudgetExceededError) {
           return reply.code(429).send({ error: err.message });
+        }
+        if (err instanceof AIUnavailableError) {
+          return reply.code(503).send({ error: err.message });
         }
         throw err;
       }
