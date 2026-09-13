@@ -12,6 +12,7 @@ import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
 import { PuzzleIcon, SparklesIcon } from "../components/icons";
 import { EmptyState, ErrorState, InlineError, SkeletonRows } from "../components/states";
+import { StaggerContainer, StaggerItem } from "../components/motion";
 
 interface YouTubeRow {
   videoId: string;
@@ -332,9 +333,9 @@ export default function Videos() {
           body="The catalog is curated by hand and growing — check another subject."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <StaggerContainer style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {rows.map((v) => (
-            <div key={v.id} className="card" style={{ padding: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <StaggerItem key={v.id} className="card" style={{ padding: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
               <div
                 style={{ flexShrink: 0, cursor: "pointer" }}
                 onClick={() => { watched(v); navigate(`/videos/${v.id}`); }}
@@ -413,9 +414,9 @@ export default function Videos() {
                   </div>
                 )}
               </div>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       )}
     </AppShell>
   );

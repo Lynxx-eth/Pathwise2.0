@@ -8,6 +8,7 @@ import { useFeatures } from "../lib/features";
 import { api } from "../lib/api";
 import { LogoFull } from "./Logo";
 import { Avatar } from "./Avatar";
+import { PageTransition } from "./motion";
 import {
   HomeIcon,
   PuzzleIcon,
@@ -253,9 +254,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           </div>
         )}
-        <div key={location.pathname} className="page-fade-in">
+        <PageTransition key={location.pathname} className="page-fade-in">
           {children}
-        </div>
+        </PageTransition>
       </main>
     </>
   );

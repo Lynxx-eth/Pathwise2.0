@@ -6,6 +6,7 @@ import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { UsersIcon } from "../components/icons";
+import { StaggerContainer, StaggerItem } from "../components/motion";
 import {
   EmptyState,
   ErrorState,
@@ -243,10 +244,10 @@ export default function CommunityView() {
           body="Be the first — ask the question you're actually stuck on."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <StaggerContainer style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {posts.map((p) => (
+            <StaggerItem key={p.id}>
             <Link
-              key={p.id}
               to={`/communities/posts/${p.id}`}
               className="card"
               style={{ padding: 16, display: "block" }}
@@ -263,8 +264,9 @@ export default function CommunityView() {
                 {p.helpful > 0 ? ` · ${p.helpful} found this helpful` : ""}
               </div>
             </Link>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       )}
     </AppShell>
   );

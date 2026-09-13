@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { FeaturesProvider, useFeatures, type Features } from "./lib/features";
 import { ThemeProvider } from "./lib/theme";
@@ -153,16 +154,20 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <FeaturesProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </ToastProvider>
-        </AuthProvider>
-      </FeaturesProvider>
-    </ThemeProvider>
+    // reducedMotion="user" turns off Framer transforms app-wide for people
+    // with a reduced-motion preference; the CSS kill-switch covers the rest.
+    <MotionConfig reducedMotion="user">
+      <ThemeProvider>
+        <FeaturesProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ToastProvider>
+          </AuthProvider>
+        </FeaturesProvider>
+      </ThemeProvider>
+    </MotionConfig>
   );
 }

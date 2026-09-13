@@ -15,6 +15,7 @@ import {
   AlertIcon,
 } from "../components/icons";
 import { Collapsible } from "../components/Collapsible";
+import { StaggerContainer, StaggerItem } from "../components/motion";
 import {
   EmptyState,
   ErrorState,
@@ -312,9 +313,9 @@ export default function CourseView() {
           }
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <StaggerContainer style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {course.topics.map((t) => (
-            <div key={t.id} className="topic-row" style={{ flexWrap: "wrap" }}>
+            <StaggerItem key={t.id} className="topic-row" style={{ flexWrap: "wrap" }}>
               <span
                 className="heat-dot"
                 style={{ background: masteryDotColor(t) }}
@@ -374,9 +375,9 @@ export default function CourseView() {
                   </Collapsible>
                 </div>
               )}
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       )}
     </AppShell>
   );

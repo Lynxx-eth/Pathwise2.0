@@ -4,6 +4,7 @@
 // slow page shows its shape rather than a spinner in an empty void.
 import type { ReactNode } from "react";
 import { AlertIcon } from "./icons";
+import { FadeIn, ScaleIn } from "./motion";
 
 /** Screen-reader-announced busy region. */
 export function Loading({ label = "Loading…" }: { label?: string }) {
@@ -47,18 +48,20 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="empty-state" role="alert">
-      <div className="icon-circle" style={{ background: "var(--danger-light)", color: "#8A2B2B" }}>
-        <AlertIcon cls="icon-lg" />
+    <FadeIn className="empty-state">
+      <div role="alert">
+        <ScaleIn className="icon-circle" style={{ background: "var(--danger-light)", color: "#8A2B2B", margin: "0 auto 18px auto" }}>
+          <AlertIcon cls="icon-lg" />
+        </ScaleIn>
+        <h2 style={{ fontSize: 16, marginBottom: 6 }}>That didn't load</h2>
+        <p style={{ color: "var(--ink-soft)", fontSize: 13.5, marginBottom: 18 }}>{message}</p>
+        {onRetry && (
+          <button className="btn btn-ghost" onClick={onRetry}>
+            Try again
+          </button>
+        )}
       </div>
-      <h2 style={{ fontSize: 16, marginBottom: 6 }}>That didn't load</h2>
-      <p style={{ color: "var(--ink-soft)", fontSize: 13.5, marginBottom: 18 }}>{message}</p>
-      {onRetry && (
-        <button className="btn btn-ghost" onClick={onRetry}>
-          Try again
-        </button>
-      )}
-    </div>
+    </FadeIn>
   );
 }
 
@@ -74,14 +77,16 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="empty-state">
-      <div className="icon-circle">{icon}</div>
+    <FadeIn className="empty-state">
+      <ScaleIn className="icon-circle" style={{ margin: "0 auto 18px auto" }}>
+        {icon}
+      </ScaleIn>
       <h2 style={{ fontSize: 16, marginBottom: 6 }}>{title}</h2>
-      <p style={{ color: "var(--ink-soft)", fontSize: 13.5, marginBottom: 18, maxWidth: 420, margin: "0 auto 18px auto" }}>
+      <p style={{ color: "var(--ink-soft)", fontSize: 13.5, maxWidth: 420, margin: "0 auto 18px auto" }}>
         {body}
       </p>
       {action}
-    </div>
+    </FadeIn>
   );
 }
 

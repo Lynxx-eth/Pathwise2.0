@@ -9,6 +9,7 @@ import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
 import { MailIcon, SendIcon } from "../components/icons";
 import { UserActions } from "../components/UserActions";
+import { StaggerContainer, StaggerItem } from "../components/motion";
 import {
   EmptyState,
   ErrorState,
@@ -175,6 +176,7 @@ function Thread({
         {c.messages.map((m) => (
           <div
             key={m.id}
+            className="bubble-in"
             style={{
               alignSelf: m.mine ? "flex-end" : "flex-start",
               maxWidth: "80%",
@@ -282,7 +284,7 @@ export default function Messages() {
 
       {/* Stacks on phones — the open thread jumps above the list (.thread-pane). */}
       <div className={conversationId ? "messages-grid" : undefined}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <StaggerContainer style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {loading ? (
             <SkeletonRows rows={4} height={56} />
           ) : error ? (
@@ -300,12 +302,13 @@ export default function Messages() {
             />
           ) : (
             rows.map((c) => (
+              <StaggerItem key={c.id}>
               <button
-                key={c.id}
                 className="card"
                 onClick={() => navigate(`/messages/${c.id}`)}
                 style={{
-                  padding: 12,
+                  width: "100%",
+                  padding: "12px 14px",
                   textAlign: "left",
                   cursor: "pointer",
                   border:
@@ -331,9 +334,10 @@ export default function Messages() {
                     : c.lastMessage ?? "Say hi — start the conversation"}
                 </div>
               </button>
+              </StaggerItem>
             ))
           )}
-        </div>
+        </StaggerContainer>
 
         {conversationId && (
           <div className="card thread-pane" style={{ padding: 16 }}>

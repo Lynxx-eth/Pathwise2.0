@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { useApi } from "../lib/useApi";
 import { BookIcon, PlusIcon, FlameIcon, AlertIcon } from "../components/icons";
+import { StaggerContainer, StaggerItem } from "../components/motion";
 import { EmptyState, ErrorState, SkeletonGrid } from "../components/states";
 
 interface CourseCard {
@@ -84,13 +85,13 @@ export default function Courses() {
               }
             />
           ) : (
-            <div className="courses-grid">
+            <StaggerContainer className="courses-grid">
               {data.courses.map((c) => (
+                <StaggerItem key={c.id} style={{ display: "flex" }}>
                 <button
-                  key={c.id}
                   className="course-card"
                   onClick={() => openCourse(c.id)}
-                  style={{ cursor: "pointer", textAlign: "left" }}
+                  style={{ cursor: "pointer", textAlign: "left", width: "100%" }}
                 >
                   <div className="course-icon">
                     <BookIcon cls="icon" />
@@ -114,9 +115,11 @@ export default function Courses() {
                       : `${c.topicCount} topics${c.dueCount > 0 ? ` · ${c.dueCount} due` : ""}`}
                   </div>
                 </button>
+                </StaggerItem>
               ))}
 
-              <button className="add-course-card" onClick={addCourse}>
+              <StaggerItem style={{ display: "flex" }}>
+              <button className="add-course-card" onClick={addCourse} style={{ width: "100%" }}>
                 {data.meta.atCap ? (
                   <>
                     <AlertIcon cls="icon-lg" />
@@ -132,7 +135,8 @@ export default function Courses() {
                   </>
                 )}
               </button>
-            </div>
+              </StaggerItem>
+            </StaggerContainer>
           )}
         </>
       )}
