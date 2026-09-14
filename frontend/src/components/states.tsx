@@ -6,15 +6,24 @@ import type { ReactNode } from "react";
 import { AlertIcon } from "./icons";
 import { FadeIn, ScaleIn } from "./motion";
 
+/** Branded inline spinner — pair with a label for any in-flight action. */
+export function Spinner({ size = 16 }: { size?: number }) {
+  return <span className="spinner" style={{ width: size, height: size }} aria-hidden="true" />;
+}
+
 /** Screen-reader-announced busy region. */
 export function Loading({ label = "Loading…" }: { label?: string }) {
   return (
     <div
       role="status"
       aria-live="polite"
-      style={{ padding: "40px 0", textAlign: "center", color: "var(--ink-soft)", fontSize: 13.5 }}
+      style={{
+        padding: "40px 0", textAlign: "center", color: "var(--ink-soft)",
+        fontSize: 13.5, display: "flex", alignItems: "center",
+        justifyContent: "center", gap: 10,
+      }}
     >
-      {label}
+      <Spinner size={18} /> {label}
     </div>
   );
 }

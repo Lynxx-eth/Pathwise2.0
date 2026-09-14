@@ -186,8 +186,10 @@ model Upload {
   mimeType      String
   sizeBytes     Int
 
-  // "pending" | "parsing" | "processed" | "failed" | "rejected"
-  // "rejected" = failed the content check in Step 15 (off-topic/inappropriate).
+  // "pending" | "parsing" | "mapping" | "processed" | "failed" | "rejected"
+  // Processing is a BACKGROUND job (UX overhaul Phase 1.1): parsing =
+  // extracting text, mapping = building the knowledge map. "rejected" =
+  // failed the content check in Step 15 (off-topic/inappropriate).
   status        String    @default("pending")
   extractedText String?   // raw text pulled out of the file (Step 2)
   error         String?

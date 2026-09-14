@@ -346,6 +346,17 @@ html, body { overflow-x: hidden; }
 .collapsible-body.open > div { padding: 0 16px 16px 16px; }
 
 /* ---- Loading / notice / empty states ---- */
+/* Pathwise spinner — immediate feedback for any in-flight action. */
+.spinner {
+  display: inline-block; flex-shrink: 0;
+  border: 2.5px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spinnerSpin 0.7s linear infinite;
+}
+@keyframes spinnerSpin { to { transform: rotate(360deg); } }
+.btn .spinner { border-color: rgba(255,255,255,0.35); border-top-color: white; }
+.btn-ghost .spinner { border-color: var(--border); border-top-color: var(--primary); }
+
 .skeleton {
   border-radius: var(--r-md);
   background: linear-gradient(90deg, var(--skeleton) 25%, var(--skeleton-shine) 37%, var(--skeleton) 63%);
