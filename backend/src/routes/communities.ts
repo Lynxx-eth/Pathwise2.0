@@ -25,6 +25,7 @@ import {
 } from "../lib/aiMeter.js";
 import { AIUnavailableError } from "../ai/resilience.js";
 import { track } from "../lib/analytics.js";
+import { avatarUrlFor } from "./profile.js";
 
 const postSchema = z.object({
   kind: z.enum(POST_KINDS).default("discussion"),
@@ -277,7 +278,7 @@ export default async function communityRoutes(app: FastifyInstance) {
         take: PAGE + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         include: {
-          author: { select: { name: true, username: true } },
+          author: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
           _count: {
             select: {
               replies: { where: { status: "visible" } },
@@ -291,6 +292,17 @@ export default async function communityRoutes(app: FastifyInstance) {
       const page = posts.slice(0, PAGE);
       const membership = await membershipOf(req.user.sub, id);
 
+      // A face row for the community (Phase 2.3): recent members with their
+      // avatars, so "who's here" is visible and messageable.
+      const memberRows = await prisma.communityMember.findMany({
+        where: { communityId: id, user: { deletedAt: null, isGuest: false, isSystem: false } },
+        orderBy: { joinedAt: "desc" },
+        take: 14,
+        include: {
+          user: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
+        },
+      });
+
       return reply.send({
         community: {
           id: community.id,
@@ -302,11 +314,21 @@ export default async function communityRoutes(app: FastifyInstance) {
           children: community.children,
           joined: Boolean(membership),
         },
+        members: memberRows.map((m) => ({
+          userId: m.user.id,
+          name: m.user.username ?? m.user.name,
+          avatarUrl: avatarUrlFor({ id: m.user.id, avatarPath: m.user.avatarPath }),
+          avatarFrame: m.user.avatarFrame ?? "classic",
+          me: m.user.id === req.user.sub,
+        })),
         posts: page.map((p) => ({
           id: p.id,
           kind: p.kind,
           title: p.title,
           author: authorName(p.author),
+          authorId: p.authorId,
+          authorAvatarUrl: avatarUrlFor({ id: p.author.id, avatarPath: p.author.avatarPath }),
+          authorAvatarFrame: p.author.avatarFrame ?? "classic",
           mine: p.authorId === req.user.sub,
           replies: p._count.replies,
           helpful: p._count.reactions,

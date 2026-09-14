@@ -78,6 +78,10 @@ model User {
   isGuest        Boolean   @default(false)
   guestExpiresAt DateTime?
 
+  // Reserved internal identities (the @pathwise chat assistant). Excluded
+  // from search, matching and every social surface.
+  isSystem       Boolean   @default(false)
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -774,6 +778,9 @@ model DirectMessage {
   senderId       String
   sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   body           String
+  // Swipe-to-reply (messaging overhaul Phase 2): the message this one quotes.
+  // Plain id, no FK — a deleted original leaves the quote text standing.
+  replyToId      String?
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])

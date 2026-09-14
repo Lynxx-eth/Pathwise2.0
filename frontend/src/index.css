@@ -836,8 +836,80 @@ html, body { overflow-x: hidden; }
 .flip-scene .flip-face:hover { transform: none; box-shadow: var(--shadow-sm); }
 .flip-scene .flip-back:hover { transform: rotateY(180deg); }
 
-/* ---- Messages ---- */
-.messages-grid { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px; align-items: start; }
+/* ---- Messages (chat-style redesign, messaging overhaul Phase 2.2) ---- */
+.messages-grid { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 16px; align-items: start; }
+
+.dm-thread {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: min(58vh, 540px); overflow-y: auto;
+  padding: 8px 4px; overscroll-behavior: contain;
+}
+.dm-row { display: flex; flex-direction: column; max-width: 86%; touch-action: pan-y; }
+.dm-row.mine { align-self: flex-end; align-items: flex-end; }
+.dm-row.theirs, .dm-row.ai { align-self: flex-start; align-items: flex-start; }
+.dm-bubble {
+  padding: 9px 13px; border-radius: 16px;
+  font-size: 14px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  position: relative; max-width: 100%;
+}
+.dm-row.mine .dm-bubble {
+  background: var(--primary); color: #fff;
+  border-bottom-right-radius: 5px;
+}
+.dm-row.theirs .dm-bubble {
+  background: var(--surface-alt); color: var(--ink);
+  border-bottom-left-radius: 5px;
+}
+.dm-row.ai .dm-bubble {
+  background: var(--primary-light); color: var(--ink);
+  border: 1px solid var(--border); border-bottom-left-radius: 5px;
+}
+.dm-quote {
+  border-left: 3px solid rgba(255,255,255,0.55);
+  background: rgba(0,0,0,0.10);
+  padding: 5px 9px; margin-bottom: 6px;
+  font-size: 12px; line-height: 1.4; border-radius: 7px; opacity: 0.92;
+}
+.dm-row.theirs .dm-quote, .dm-row.ai .dm-quote {
+  border-left-color: var(--primary); background: rgba(0,0,0,0.06);
+}
+:root[data-theme="dark"] .dm-row.theirs .dm-quote,
+:root[data-theme="dark"] .dm-row.ai .dm-quote { background: rgba(255,255,255,0.06); }
+.dm-meta { font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; padding: 0 4px; }
+.dm-ai-tag {
+  font-size: 10.5px; font-weight: 700; color: var(--primary-dark);
+  margin-bottom: 4px; display: flex; gap: 4px; align-items: center;
+}
+.dm-report {
+  display: block; background: none; border: none; padding: 2px 0 0;
+  font-size: 10px; color: var(--ink-faint); cursor: pointer;
+  font-family: var(--font-body); text-decoration: underline;
+}
+.reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface-alt); border-left: 3px solid var(--primary);
+  border-radius: 8px; padding: 6px 10px;
+  font-size: 12.5px; color: var(--ink-soft);
+}
+
+/* Member/search rows (communities faces, user search). */
+.member-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: none; background: none; cursor: pointer;
+  border-radius: var(--r-sm); font-family: var(--font-body); text-align: left;
+  color: var(--ink);
+  transition: background var(--t-fast) ease;
+}
+.member-row:hover { background: var(--surface-alt); }
+
+/* Unread badge on drawer nav items (Phase 2.2). */
+.nav-badge {
+  margin-left: auto; background: var(--accent); color: #fff;
+  border-radius: 20px; font-size: 10.5px; font-weight: 700;
+  padding: 1px 7px; min-width: 18px; text-align: center;
+  font-family: var(--font-mono);
+}
 
 /* ============================================================
    6. UTILITIES & ANIMATIONS
