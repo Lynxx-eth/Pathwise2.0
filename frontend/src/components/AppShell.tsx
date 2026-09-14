@@ -260,11 +260,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main
-        id="main-content"
-        className="main"
-        style={{ maxWidth: 1100, margin: "0 auto" }}
-      >
+      <main id="main-content" className="main">
         {user?.isGuest && (
           <div
             className="form-notice"

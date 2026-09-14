@@ -81,8 +81,12 @@
    ============================================================ */
 * { box-sizing: border-box; }
 
+/* Type scale (Phase 3): base 15px; meta 12-13px; body copy 14-15px;
+   titles 22-26px. Secondary text is deliberately smaller — hierarchy,
+   not uniformity. */
 body {
   font-family: var(--font-body); background: var(--bg); color: var(--ink);
+  font-size: 15px; line-height: 1.55;
   -webkit-font-smoothing: antialiased; letter-spacing: -0.005em; margin: 0;
 }
 h1, h2, h3 { font-family: var(--font-body); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
@@ -129,9 +133,12 @@ html, body { overflow-x: hidden; }
    ============================================================ */
 .rail {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+  /* Fixed height so full-bleed surfaces (the video feed) can anchor to it. */
+  height: var(--rail-h); padding: 0 20px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
   position: sticky; top: 0; z-index: 60;
 }
+:root { --rail-h: 64px; }
 
 .main {
   flex: 1; padding: 30px 42px calc(48px + env(safe-area-inset-bottom)) 42px;
@@ -164,7 +171,7 @@ html, body { overflow-x: hidden; }
 .nav-list { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
   display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-  border-radius: var(--r-sm); font-weight: 600; font-size: 14px;
+  border-radius: var(--r-sm); font-weight: 600; font-size: 14.5px;
   color: var(--ink-soft); cursor: pointer;
   transition: background var(--t-fast) ease, color var(--t-fast) ease, transform var(--t-fast) ease;
 }
@@ -187,17 +194,17 @@ html, body { overflow-x: hidden; }
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 14px; flex-wrap: wrap; margin-bottom: 22px;
 }
-.page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.page-title { font-size: 23px; font-weight: 800; letter-spacing: -0.02em; }
 .page-sub {
-  font-size: 13.5px; color: var(--ink-soft); margin: 5px 0 0;
+  font-size: 14px; color: var(--ink-soft); margin: 5px 0 0;
   line-height: 1.55; max-width: 62ch;
 }
 .eyebrow {
   font-size: 12.5px; font-weight: 700; color: var(--primary);
   text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
 }
-.section-title { font-size: 21px; margin-bottom: 4px; }
-.section-sub { color: var(--ink-soft); font-size: 13.5px; margin-bottom: 20px; }
+.section-title { font-size: 22px; margin-bottom: 4px; }
+.section-sub { color: var(--ink-soft); font-size: 14px; margin-bottom: 20px; }
 
 /* Mini section headings between card groups. */
 .section-label {
@@ -911,6 +918,87 @@ html, body { overflow-x: hidden; }
   font-family: var(--font-mono);
 }
 
+/* ---- TikTok-style video feed (UX overhaul Phase 6) ---- */
+.feed-shell {
+  position: fixed; top: var(--rail-h); left: 0; right: 0; bottom: 0;
+  background: #000; z-index: 40; color: #fff;
+}
+.feed-scroll {
+  height: 100%; overflow-y: auto;
+  scroll-snap-type: y mandatory; overscroll-behavior: contain;
+}
+.feed-slide {
+  position: relative; height: 100%;
+  scroll-snap-align: start; scroll-snap-stop: always;
+  display: flex; align-items: center; justify-content: center;
+}
+.feed-media {
+  width: 100%; height: 100%; max-width: 560px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.feed-thumb { width: 100%; max-height: 100%; object-fit: contain; opacity: 0.9; }
+.feed-thumb-empty {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 40%; color: rgba(255,255,255,0.55);
+  font-weight: 700; font-size: 18px;
+  background: linear-gradient(160deg, #17251f, #0b0f0d);
+}
+.feed-top {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 45;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
+  pointer-events: none;
+}
+.feed-top > * { pointer-events: auto; }
+.feed-top-label { font-weight: 700; font-size: 14.5px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+.feed-top-btn { color: #fff; font-size: 16px; }
+.feed-top-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.feed-actions {
+  position: absolute; right: 10px; bottom: calc(84px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px; z-index: 45;
+}
+.feed-action {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: rgba(0,0,0,0.35); border: none; border-radius: 14px;
+  color: #fff; cursor: pointer; padding: 10px 10px 7px;
+  font-size: 20px; min-width: 52px; text-decoration: none;
+  transition: transform 100ms ease, background var(--t-fast) ease;
+}
+.feed-action:hover { background: rgba(255,255,255,0.16); }
+.feed-action:active { transform: scale(0.92); }
+.feed-action small { font-size: 10px; font-weight: 700; letter-spacing: 0.02em; }
+.feed-action.on small { color: var(--primary-glow); }
+.feed-info {
+  position: absolute; left: 14px; right: 84px;
+  bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 45;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+.feed-title { font-weight: 700; font-size: 15.5px; line-height: 1.4; color: #fff; }
+.feed-meta { font-size: 12.5px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+.feed-reason { margin-top: 8px; display: inline-flex; }
+.feed-center {
+  height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; color: rgba(255,255,255,0.85);
+  text-align: center; padding: 24px; font-size: 14px;
+}
+.feed-error { position: absolute; left: 16px; right: 16px; top: 60px; z-index: 46; }
+.feed-sheet-backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 48;
+}
+.feed-sheet {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 49;
+  background: var(--surface); color: var(--ink);
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+  padding: 18px 18px 22px; max-height: 82%; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: sheetDown var(--t-slow) var(--ease-out) both;
+}
+@keyframes sheetDown {
+  from { transform: translateY(-12%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 /* ============================================================
    6. UTILITIES & ANIMATIONS
    ============================================================ */
@@ -1004,15 +1092,16 @@ html, body { overflow-x: hidden; }
 }
 
 @media (max-width: 640px) {
-  .page-title, .section-title { font-size: 19px; }
-  h1 { font-size: 19px; }
+  .page-title, .section-title { font-size: 20px; }
+  h1 { font-size: 20px; }
   .card { padding: 14px; }
   .auth-card { padding: 24px 18px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 10px; }
   .page-head .btn { width: 100%; }
   .dots-row { flex-wrap: wrap; row-gap: 6px; }
   .topbar { margin-bottom: 18px; }
-  .rail { padding: 10px 12px; gap: 8px; }
+  .rail { padding: 0 12px; gap: 8px; }
+  :root { --rail-h: 56px; }
 }
 
 @media (max-width: 520px) {
@@ -1022,6 +1111,24 @@ html, body { overflow-x: hidden; }
 
 @media (max-width: 420px) {
   .rank-chip { display: none; }
+}
+
+/* Desktop tier (Phase 3): more room, larger surfaces — the app should
+   feel spacious on a big screen, not like a stretched phone layout. */
+@media (min-width: 1280px) {
+  .main { max-width: 1280px; padding: 40px 56px calc(64px + env(safe-area-inset-bottom)) 56px; }
+  .page-title { font-size: 26px; }
+  .section-title { font-size: 24px; }
+  .page-sub, .section-sub { font-size: 14.5px; }
+  .card { padding: 24px; }
+  .courses-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+  .heatmap-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+  .messages-grid { grid-template-columns: minmax(240px, 340px) 1fr; gap: 20px; }
+  .dm-thread { max-height: min(62vh, 640px); }
+  .chat-area { max-width: 780px; }
+  .chat-input-bar { max-width: 780px; }
+  .rail { padding: 0 28px; }
+  .btn { font-size: 14.5px; }
 }
 
 /* Touch devices: every tap target is at least 44px. */

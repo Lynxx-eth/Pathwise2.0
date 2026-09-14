@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { useApi } from "../lib/useApi";
-import { BookIcon, PlusIcon, FlameIcon, AlertIcon } from "../components/icons";
+import { BookIcon, PlusIcon, FlameIcon, AlertIcon, SparklesIcon } from "../components/icons";
 import { StaggerContainer, StaggerItem } from "../components/motion";
 import { EmptyState, ErrorState, SkeletonGrid } from "../components/states";
 
@@ -52,10 +52,18 @@ export default function Courses() {
 
   return (
     <AppShell>
-      <div className="eyebrow">Your courses</div>
-      <h1 className="section-title" style={{ marginBottom: 6 }}>
-        What are we studying?
-      </h1>
+      <div className="page-head" style={{ marginBottom: 6 }}>
+        <div>
+          <div className="eyebrow">Your courses</div>
+          <h1 className="section-title" style={{ marginBottom: 6 }}>
+            What are we studying?
+          </h1>
+        </div>
+        {/* Home AI chat entry point (UX overhaul Phase 5). */}
+        <button className="btn btn-accent" onClick={() => navigate("/chat")}>
+          <SparklesIcon cls="icon-sm" /> Chat with Pathwise
+        </button>
+      </div>
 
       {loading && (
         <div style={{ marginTop: 20 }}>

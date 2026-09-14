@@ -397,7 +397,7 @@ export default async function communityRoutes(app: FastifyInstance) {
       const post = await prisma.communityPost.findFirst({
         where: { id: postId, status: "visible" },
         include: {
-          author: { select: { name: true, username: true } },
+          author: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
           community: { select: { id: true, name: true, slug: true } },
           _count: { select: { reactions: true } },
           reactions: { where: { userId: req.user.sub }, select: { id: true } },
@@ -406,7 +406,7 @@ export default async function communityRoutes(app: FastifyInstance) {
             orderBy: { createdAt: "asc" },
             take: 200,
             include: {
-              author: { select: { name: true, username: true } },
+              author: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
               _count: { select: { reactions: true } },
               reactions: { where: { userId: req.user.sub }, select: { id: true } },
             },
@@ -424,6 +424,9 @@ export default async function communityRoutes(app: FastifyInstance) {
           title: post.title,
           body: post.body,
           author: authorName(post.author),
+          authorId: post.authorId,
+          authorAvatarUrl: avatarUrlFor({ id: post.author.id, avatarPath: post.author.avatarPath }),
+          authorAvatarFrame: post.author.avatarFrame ?? "classic",
           mine: post.authorId === req.user.sub,
           helpful: post._count.reactions,
           reactedByMe: post.reactions.length > 0,
@@ -434,6 +437,9 @@ export default async function communityRoutes(app: FastifyInstance) {
             id: r.id,
             body: r.body,
             author: authorName(r.author),
+            authorId: r.authorId,
+            authorAvatarUrl: avatarUrlFor({ id: r.author.id, avatarPath: r.author.avatarPath }),
+            authorAvatarFrame: r.author.avatarFrame ?? "classic",
             mine: r.authorId === req.user.sub,
             helpful: r._count.reactions,
             reactedByMe: r.reactions.length > 0,
