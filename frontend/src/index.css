@@ -843,8 +843,69 @@ html, body { overflow-x: hidden; }
 .flip-scene .flip-face:hover { transform: none; box-shadow: var(--shadow-sm); }
 .flip-scene .flip-back:hover { transform: rotateY(180deg); }
 
-/* ---- Messages (chat-style redesign, messaging overhaul Phase 2.2) ---- */
-.messages-grid { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 16px; align-items: start; }
+/* ---- Messages: Telegram/WhatsApp-style app layout ---- */
+/* Wallpaper tint behind the open chat — light sage / near-black green. */
+:root { --chat-bg: #E7EFE8; --chat-list-w: 360px; }
+
+.chat-shell {
+  position: fixed; top: var(--rail-h); left: 0; right: 0; bottom: 0;
+  display: flex; z-index: 40; background: var(--surface);
+}
+.chat-list {
+  width: var(--chat-list-w); flex-shrink: 0; min-width: 0;
+  border-right: 1px solid var(--border); background: var(--surface);
+  display: flex; flex-direction: column;
+}
+.chat-list-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.chat-rows { flex: 1; overflow-y: auto; }
+.chat-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 11px 14px; border: none; background: none; cursor: pointer;
+  text-align: left; font-family: var(--font-body); color: var(--ink);
+  transition: background var(--t-fast) ease;
+}
+.chat-row:hover { background: var(--surface-alt); }
+.chat-row.active { background: var(--primary-light); }
+.chat-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.chat-row-top, .chat-row-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.chat-row-name { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-row-time { font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
+.chat-row-snippet { font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-row-unread {
+  background: var(--primary); color: #fff; border-radius: 20px;
+  font-size: 10.5px; font-weight: 700; min-width: 19px; height: 19px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 6px; font-family: var(--font-mono); flex-shrink: 0;
+}
+
+.chat-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--chat-bg); }
+.chat-header {
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; min-height: 58px;
+}
+.chat-back { display: none; }
+.chat-body {
+  flex: 1; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 18px clamp(14px, 7%, 90px);
+}
+.chat-composer-wrap {
+  flex-shrink: 0; background: var(--surface); border-top: 1px solid var(--border);
+  padding: 10px clamp(14px, 7%, 90px) calc(12px + env(safe-area-inset-bottom));
+}
+.chat-composer { display: flex; gap: 10px; align-items: flex-end; }
+.chat-composer .input { flex: 1; border-radius: 22px; resize: none; max-height: 120px; }
+.chat-send { border-radius: 50%; width: 46px; height: 46px; padding: 0; flex-shrink: 0; }
+.chat-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; color: var(--ink-soft); font-size: 14px;
+}
 
 .dm-thread {
   display: flex; flex-direction: column; gap: 8px;
@@ -855,17 +916,18 @@ html, body { overflow-x: hidden; }
 .dm-row.mine { align-self: flex-end; align-items: flex-end; }
 .dm-row.theirs, .dm-row.ai { align-self: flex-start; align-items: flex-start; }
 .dm-bubble {
-  padding: 9px 13px; border-radius: 16px;
-  font-size: 14px; line-height: 1.5;
+  padding: 9px 14px; border-radius: 18px;
+  font-size: 15px; line-height: 1.5;
   white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
   position: relative; max-width: 100%;
+  box-shadow: 0 1px 1px rgba(16,32,26,0.08);
 }
 .dm-row.mine .dm-bubble {
   background: var(--primary); color: #fff;
   border-bottom-right-radius: 5px;
 }
 .dm-row.theirs .dm-bubble {
-  background: var(--surface-alt); color: var(--ink);
+  background: var(--surface); color: var(--ink);
   border-bottom-left-radius: 5px;
 }
 .dm-row.ai .dm-bubble {
@@ -917,6 +979,52 @@ html, body { overflow-x: hidden; }
   padding: 1px 7px; min-width: 18px; text-align: center;
   font-family: var(--font-mono);
 }
+
+/* ---- Prose: AI-written content, presented like Claude presents it ----
+   Real reading typography: 16px+, tall line-height, THICK bold highlights,
+   proper lists and small headings. Used for topic breakdowns and AI chat. */
+.prose { font-size: 16px; line-height: 1.75; color: var(--ink); overflow-wrap: anywhere; }
+.prose p { margin: 0 0 14px; }
+.prose p:last-child, .prose ul:last-child, .prose ol:last-child { margin-bottom: 0; }
+.prose ul, .prose ol { margin: 0 0 14px; padding-left: 24px; }
+.prose li { margin: 5px 0; }
+.prose li::marker { color: var(--primary); font-weight: 700; }
+.prose strong { font-weight: 800; }
+.prose em { font-style: italic; }
+.prose code {
+  font-family: var(--font-mono); font-size: 0.88em;
+  background: var(--surface-alt); border: 1px solid var(--border);
+  padding: 1px 6px; border-radius: 6px;
+}
+.prose h4 {
+  font-size: 16.5px; font-weight: 800; letter-spacing: -0.01em;
+  margin: 20px 0 8px;
+}
+.prose h4:first-child { margin-top: 0; }
+.prose-compact { font-size: 15px; line-height: 1.6; }
+.prose-compact p, .prose-compact ul, .prose-compact ol { margin-bottom: 8px; }
+.prose-compact h4 { font-size: 15px; margin: 10px 0 5px; }
+/* Inside a filled green bubble, keep everything readable on the fill. */
+.prose-invert, .prose-invert strong, .prose-invert h4 { color: #fff; }
+.prose-invert code { background: rgba(255,255,255,0.18); border-color: transparent; color: #fff; }
+
+/* Reading column for long-form pages (topic breakdowns) — a centered,
+   comfortable measure like a Claude answer. */
+.reading-col { max-width: 780px; margin: 0 auto; }
+.reading-section { margin-bottom: 26px; }
+.reading-section > h2 {
+  font-size: 19px; font-weight: 800; letter-spacing: -0.015em;
+  margin-bottom: 10px; padding-top: 4px;
+}
+.callout {
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--r-md);
+  border-left: 3px solid var(--accent); background: var(--accent-light);
+}
+.callout .callout-label {
+  display: block; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
+  text-transform: uppercase; margin-bottom: 6px; color: var(--ink-soft);
+}
+.callout-primary { border-left-color: var(--primary); background: var(--primary-light); }
 
 /* ---- TikTok-style video feed (UX overhaul Phase 6) ---- */
 .feed-shell {
@@ -1065,6 +1173,9 @@ html, body { overflow-x: hidden; }
 
   --skeleton: #1B2621;
   --skeleton-shine: #223029;
+
+  /* Chat wallpaper goes near-black green in dark mode. */
+  --chat-bg: #0A100D;
 }
 
 /* Dark mode: no washed-out cream gradient — plain surface card tokens with
@@ -1086,9 +1197,16 @@ html, body { overflow-x: hidden; }
   .chat-input-bar { padding: 0 15px calc(18px + env(safe-area-inset-bottom)) 15px; }
 }
 
-@media (max-width: 720px) {
-  .messages-grid { grid-template-columns: 1fr; }
-  .messages-grid .thread-pane { order: -1; }
+/* Chat on phones: full-width list; opening a thread takes over the WHOLE
+   screen (rail included) with its own header + back button — exactly the
+   Telegram/WhatsApp pattern. */
+@media (max-width: 860px) {
+  .chat-list { width: 100%; border-right: none; }
+  .chat-shell:not(.thread-open) .chat-pane { display: none; }
+  .chat-shell.thread-open { top: 0; z-index: 120; }
+  .chat-shell.thread-open .chat-list { display: none; }
+  .chat-back { display: inline-flex; }
+  .dm-row { max-width: 92%; }
 }
 
 @media (max-width: 640px) {
@@ -1116,15 +1234,23 @@ html, body { overflow-x: hidden; }
 /* Desktop tier (Phase 3): more room, larger surfaces — the app should
    feel spacious on a big screen, not like a stretched phone layout. */
 @media (min-width: 1280px) {
+  body { font-size: 15.5px; }
   .main { max-width: 1280px; padding: 40px 56px calc(64px + env(safe-area-inset-bottom)) 56px; }
-  .page-title { font-size: 26px; }
-  .section-title { font-size: 24px; }
-  .page-sub, .section-sub { font-size: 14.5px; }
+  .page-title { font-size: 28px; }
+  .section-title { font-size: 26px; }
+  .page-sub, .section-sub { font-size: 15.5px; }
+  .prose { font-size: 17px; }
+  .reading-section > h2 { font-size: 21px; }
+  .nav-item { font-size: 15px; }
+  .quest-title, .course-name { font-size: 16px; }
+  .topic-row .t-name { font-size: 15px; }
   .card { padding: 24px; }
   .courses-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
   .heatmap-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
-  .messages-grid { grid-template-columns: minmax(240px, 340px) 1fr; gap: 20px; }
+  :root { --chat-list-w: 400px; }
   .dm-thread { max-height: min(62vh, 640px); }
+  .dm-bubble { font-size: 15.5px; }
+  .dm-row { max-width: 68%; }
   .chat-area { max-width: 780px; }
   .chat-input-bar { max-width: 780px; }
   .rail { padding: 0 28px; }

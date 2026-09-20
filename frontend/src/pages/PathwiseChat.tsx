@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { PlusIcon, SendIcon, SparklesIcon } from "../components/icons";
+import { Prose } from "../components/Prose";
 import { InlineError, Spinner } from "../components/states";
 
 interface ChatTurn {
@@ -158,12 +159,16 @@ export default function PathwiseChat() {
           {turns.map((t, i) => (
             <div key={i} className={`dm-row bubble-in ${t.role === "user" ? "mine" : "ai"}`}>
               <div className="dm-bubble">
-                {t.role === "assistant" && (
-                  <div className="dm-ai-tag">
-                    <SparklesIcon cls="icon-sm" /> Pathwise
-                  </div>
+                {t.role === "assistant" ? (
+                  <>
+                    <div className="dm-ai-tag">
+                      <SparklesIcon cls="icon-sm" /> Pathwise
+                    </div>
+                    <Prose text={t.content} compact />
+                  </>
+                ) : (
+                  t.content
                 )}
-                {t.content}
               </div>
             </div>
           ))}

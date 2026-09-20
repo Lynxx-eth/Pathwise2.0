@@ -1,8 +1,9 @@
-// Direct messages (PATHWISE 2.0 Phase 12, redesigned in the messaging
-// overhaul): conversation list + a chat-style thread. Near-real-time via a
-// 3s silent poll + optimistic sends; swipe a bubble left to reply; type
-// "@pathwise" to summon the AI study companion into the conversation.
-// Message requests stay explicit — nothing lands without your say-so.
+// Direct messages — Telegram/WhatsApp-style layout (UX update):
+// desktop = two fixed panes (conversation list left, live chat right,
+// composer pinned to the bottom); mobile = full-screen list, and opening a
+// chat takes over the whole screen with its own header + back button.
+// Near-real-time via a 3s silent poll + optimistic sends; swipe a bubble
+// left to quote-reply; "@pathwise" summons the AI companion.
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -11,9 +12,15 @@ import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
 import { Avatar } from "../components/Avatar";
-import { MailIcon, PlusIcon, SendIcon, SparklesIcon } from "../components/icons";
+import { Prose } from "../components/Prose";
+import {
+  ArrowLeftIcon,
+  MailIcon,
+  PlusIcon,
+  SendIcon,
+  SparklesIcon,
+} from "../components/icons";
 import { UserActions } from "../components/UserActions";
-import { StaggerContainer, StaggerItem } from "../components/motion";
 import {
   EmptyState,
   ErrorState,
@@ -77,7 +84,7 @@ function timeShort(iso: string): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-/** One chat bubble. Drag it left to quote-reply (Phase 2.2). */
+/** One chat bubble. Drag it left to quote-reply. */
 function Bubble({
   m,
   withName,
@@ -114,7 +121,7 @@ function Bubble({
             {m.replyTo.body}
           </div>
         )}
-        {m.body}
+        {m.fromAi ? <Prose text={m.body} compact /> : m.body}
         {!m.mine && !m.fromAi && (
           <button
             className="dm-report"
@@ -130,6 +137,7 @@ function Bubble({
   );
 }
 
+/** The open chat: header + scrolling body + pinned composer (fills the pane). */
 function Thread({
   id,
   onChanged,
@@ -147,14 +155,11 @@ function Thread({
   const { data, loading, error: loadError, reload, refresh, setData } =
     useApi<ThreadResponse>(`/api/dms/${id}`);
 
-  // Near-real-time: silent poll every 3s — new messages (and @pathwise
-  // replies) appear without any refresh and without skeleton flicker.
   useEffect(() => {
     const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  // Keep the newest message in view as the thread grows.
   const messageCount = data?.conversation.messages.length ?? 0;
   useEffect(() => {
     const el = scrollRef.current;
@@ -167,7 +172,6 @@ function Thread({
     setBusy(true);
     setError(null);
     const quoted = replyTo;
-    // Optimistic: the bubble appears the instant you hit send.
     const optimistic: ThreadMessage = {
       id: `tmp-${Date.now()}`,
       mine: true,
@@ -192,15 +196,12 @@ function Thread({
     setDraft("");
     setReplyTo(null);
     try {
-      await api.post(`/api/dms/${id}/messages`, {
-        body,
-        replyToId: quoted?.id,
-      });
+      await api.post(`/api/dms/${id}/messages`, { body, replyToId: quoted?.id });
       await refresh();
       onChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Send failed");
-      setDraft(body); // give the text back so nothing is lost
+      setDraft(body);
       await refresh();
     } finally {
       setBusy(false);
@@ -244,64 +245,77 @@ function Thread({
     }
   }
 
-  if (loading) return <SkeletonRows rows={4} height={48} />;
+  if (loading) {
+    return (
+      <div style={{ padding: 20, flex: 1 }}>
+        <SkeletonRows rows={5} height={44} />
+      </div>
+    );
+  }
   if (loadError || !data) {
-    return <ErrorState message={loadError ?? "Conversation not found"} onRetry={reload} />;
+    return (
+      <div style={{ padding: 20, flex: 1 }}>
+        <ErrorState message={loadError ?? "Conversation not found"} onRetry={reload} />
+      </div>
+    );
   }
   const c = data.conversation;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <Avatar name={c.with} url={c.withAvatarUrl} frame={c.withAvatarFrame} size={34} />
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{c.with}</div>
+    <>
+      {/* Chat header — like Telegram: back (mobile), identity, actions. */}
+      <div className="chat-header">
+        <button
+          className="icon-btn chat-back"
+          onClick={() => navigate("/messages")}
+          aria-label="Back to conversations"
+        >
+          <ArrowLeftIcon cls="icon" />
+        </button>
+        <Avatar name={c.with} url={c.withAvatarUrl} frame={c.withAvatarFrame} size={38} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {c.with}
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>
+            {c.muted ? "Muted" : c.status === "pending" ? "Message request" : "Study buddy chat"}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button className="btn btn-ghost btn-sm" onClick={toggleMute}>
-            {c.muted ? "Unmute" : "Mute"}
-          </button>
-          <UserActions
-            userId={c.withId}
-            name={c.with}
-            onNotice={(m) => {
-              setError(null);
-              setNotice(m);
-            }}
-            onError={setError}
-            onBlocked={() => {
-              onChanged();
-              navigate("/messages");
-            }}
-          />
-        </div>
+        <button className="btn btn-ghost btn-sm" onClick={toggleMute}>
+          {c.muted ? "Unmute" : "Mute"}
+        </button>
+        <UserActions
+          userId={c.withId}
+          name={c.with}
+          onNotice={(m) => {
+            setError(null);
+            setNotice(m);
+          }}
+          onError={setError}
+          onBlocked={() => {
+            onChanged();
+            navigate("/messages");
+          }}
+        />
       </div>
 
-      {c.incomingRequest && (
-        <div className="form-notice" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <span>Message request — reply only if you want to.</span>
-          <span style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => respond("accept")}>
-              Accept
-            </button>
-            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => respond("decline")}>
-              Decline
-            </button>
-          </span>
-        </div>
-      )}
-
-      <div className="dm-thread" ref={scrollRef}>
+      {/* Scrolling message area on the chat wallpaper. */}
+      <div className="chat-body" ref={scrollRef}>
+        {c.incomingRequest && (
+          <div className="form-notice" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <span>Message request — reply only if you want to.</span>
+            <span style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => respond("accept")}>
+                Accept
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => respond("decline")}>
+                Decline
+              </button>
+            </span>
+          </div>
+        )}
         {c.messages.length === 0 && (
-          <p style={{ fontSize: 12.5, color: "var(--ink-faint)", textAlign: "center", padding: "18px 0" }}>
+          <p style={{ fontSize: 13, color: "var(--ink-faint)", textAlign: "center", padding: "26px 0" }}>
             Say hi — or mention <strong>@pathwise</strong> to bring the AI study
             companion into the chat.
           </p>
@@ -311,55 +325,55 @@ function Thread({
         ))}
       </div>
 
-      <InlineError message={error} />
-      <InlineNotice message={notice} />
-
-      {replyTo && (
-        <div className="reply-bar">
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            Replying to <strong>{replyTo.mine ? "yourself" : replyTo.fromAi ? "Pathwise" : c.with}</strong>: {replyTo.body}
-          </span>
-          <button
-            className="icon-btn"
-            style={{ width: 28, height: 28 }}
-            onClick={() => setReplyTo(null)}
-            aria-label="Cancel reply"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {(c.status === "active" || !c.incomingRequest) && (
-        <div style={{ display: "flex", gap: 8 }}>
-          <label className="sr-only" htmlFor="dm-draft">Message</label>
-          <textarea
-            id="dm-draft"
-            className="input"
-            rows={2}
-            style={{ flex: 1 }}
-            placeholder="Write a message… (@pathwise asks the AI)"
-            value={draft}
-            maxLength={3000}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={send}
-            disabled={busy || draft.trim().length === 0}
-            aria-label="Send"
-          >
-            {busy ? <Spinner /> : <SendIcon cls="icon" />}
-          </button>
-        </div>
-      )}
-    </div>
+      {/* Pinned composer. */}
+      <div className="chat-composer-wrap">
+        <InlineError message={error} />
+        <InlineNotice message={notice} />
+        {replyTo && (
+          <div className="reply-bar" style={{ marginBottom: 8 }}>
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              Replying to <strong>{replyTo.mine ? "yourself" : replyTo.fromAi ? "Pathwise" : c.with}</strong>: {replyTo.body}
+            </span>
+            <button
+              className="icon-btn"
+              style={{ width: 28, height: 28 }}
+              onClick={() => setReplyTo(null)}
+              aria-label="Cancel reply"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {(c.status === "active" || !c.incomingRequest) && (
+          <div className="chat-composer">
+            <label className="sr-only" htmlFor="dm-draft">Message</label>
+            <textarea
+              id="dm-draft"
+              className="input"
+              rows={1}
+              placeholder="Message… (@pathwise asks the AI)"
+              value={draft}
+              maxLength={3000}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+            />
+            <button
+              className="btn btn-primary chat-send"
+              onClick={send}
+              disabled={busy || draft.trim().length === 0}
+              aria-label="Send"
+            >
+              {busy ? <Spinner /> : <SendIcon cls="icon" />}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -408,9 +422,9 @@ function NewChat({ onStarted }: { onStarted: (conversationId: string) => void })
   }
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <div className="field" style={{ marginBottom: 10 }}>
-        <label htmlFor="user-search">Find someone by username</label>
+    <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
+      <div className="field" style={{ marginBottom: 8 }}>
+        <label htmlFor="user-search" className="sr-only">Find someone by username</label>
         <input
           id="user-search"
           value={query}
@@ -418,7 +432,7 @@ function NewChat({ onStarted }: { onStarted: (conversationId: string) => void })
             setQuery(e.target.value);
             setTarget(null);
           }}
-          placeholder="Start typing a username…"
+          placeholder="Search a username…"
           autoComplete="off"
         />
       </div>
@@ -426,11 +440,7 @@ function NewChat({ onStarted }: { onStarted: (conversationId: string) => void })
       {searching && <Loading label="Searching…" />}
       {!target &&
         results.map((u) => (
-          <button
-            key={u.userId}
-            className="member-row"
-            onClick={() => setTarget(u)}
-          >
+          <button key={u.userId} className="member-row" onClick={() => setTarget(u)}>
             <Avatar name={u.name} url={u.avatarUrl} frame={u.avatarFrame} size={32} />
             <span style={{ fontWeight: 650, fontSize: 13.5 }}>{u.name}</span>
             <span className="pill pill-muted" style={{ marginLeft: "auto" }}>Message</span>
@@ -460,7 +470,7 @@ function NewChat({ onStarted }: { onStarted: (conversationId: string) => void })
               }}
             />
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={start}
               disabled={busy || firstMessage.trim().length === 0}
             >
@@ -482,8 +492,6 @@ export default function Messages() {
     user?.isGuest ? null : "/api/dms"
   );
 
-  // Keep the list fresh too — unread counts and new requests appear without
-  // a manual refresh (10s is plenty for a list).
   useEffect(() => {
     if (user?.isGuest) return;
     const timer = window.setInterval(() => void refresh(), 10_000);
@@ -512,105 +520,94 @@ export default function Messages() {
 
   return (
     <AppShell>
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">Messages</h1>
-          <p className="page-sub">
-            Talk to your study buddies — new people arrive as requests you can
-            accept, decline, or block.
-          </p>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowNew((s) => !s)}
-        >
-          <PlusIcon cls="icon-sm" /> New message
-        </button>
-      </div>
-
-      {showNew && (
-        <NewChat
-          onStarted={(id) => {
-            setShowNew(false);
-            reload();
-            navigate(`/messages/${id}`);
-          }}
-        />
-      )}
-
-      {/* Stacks on phones — the open thread jumps above the list (.thread-pane). */}
-      <div className={conversationId ? "messages-grid" : undefined}>
-        <StaggerContainer style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {loading ? (
-            <SkeletonRows rows={4} height={56} />
-          ) : error ? (
-            <ErrorState message={error} onRetry={reload} />
-          ) : rows.length === 0 ? (
-            <EmptyState
-              icon={<MailIcon cls="icon-lg" />}
-              title="No conversations yet"
-              body="Find a study buddy, or search someone by username with New message."
-              action={
-                <Link to="/buddies" className="btn btn-primary">
-                  Find study buddies
-                </Link>
-              }
-            />
-          ) : (
-            rows.map((c) => (
-              <StaggerItem key={c.id}>
-              <button
-                className="card"
-                onClick={() => navigate(`/messages/${c.id}`)}
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  border:
-                    c.id === conversationId
-                      ? "1px solid var(--accent)"
-                      : undefined,
-                }}
-              >
-                <Avatar name={c.with} url={c.withAvatarUrl} frame={c.withAvatarFrame} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontWeight: 650, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.with}
-                      {c.muted ? " 🔕" : ""}
-                    </span>
-                    <span style={{ fontSize: 10.5, color: "var(--ink-faint)", flexShrink: 0 }}>
-                      {timeShort(c.lastMessageAt)}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 3 }}>
-                    <span style={{ fontSize: 11.5, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.incomingRequest
-                        ? "Message request"
-                        : c.lastMessage ?? "Say hi — start the conversation"}
-                    </span>
-                    {c.unread > 0 && (
-                      <span className="pill pill-coral" style={{ fontSize: 10.5, flexShrink: 0 }}>
-                        {c.unread}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-              </StaggerItem>
-            ))
-          )}
-        </StaggerContainer>
-
-        {conversationId && (
-          <div className="card thread-pane" style={{ padding: 16 }}>
-            <Thread id={conversationId} onChanged={reload} />
+      <div className={`chat-shell ${conversationId ? "thread-open" : ""}`}>
+        {/* Left pane: conversation list (Telegram-style rows). */}
+        <aside className="chat-list">
+          <div className="chat-list-head">
+            <span style={{ fontWeight: 800, fontSize: 16.5 }}>Messages</span>
+            <button
+              className="icon-btn"
+              onClick={() => setShowNew((s) => !s)}
+              aria-label="New message"
+              aria-expanded={showNew}
+              title="New message"
+            >
+              <PlusIcon cls="icon" />
+            </button>
           </div>
-        )}
+
+          {showNew && (
+            <NewChat
+              onStarted={(id) => {
+                setShowNew(false);
+                reload();
+                navigate(`/messages/${id}`);
+              }}
+            />
+          )}
+
+          <div className="chat-rows">
+            {loading ? (
+              <div style={{ padding: 14 }}>
+                <SkeletonRows rows={6} height={60} />
+              </div>
+            ) : error ? (
+              <ErrorState message={error} onRetry={reload} />
+            ) : rows.length === 0 ? (
+              <EmptyState
+                icon={<MailIcon cls="icon-lg" />}
+                title="No conversations yet"
+                body="Find a study buddy, or search someone by username with +."
+                action={
+                  <Link to="/buddies" className="btn btn-primary btn-sm">
+                    Find study buddies
+                  </Link>
+                }
+              />
+            ) : (
+              rows.map((c) => (
+                <button
+                  key={c.id}
+                  className={`chat-row ${c.id === conversationId ? "active" : ""}`}
+                  onClick={() => navigate(`/messages/${c.id}`)}
+                >
+                  <Avatar name={c.with} url={c.withAvatarUrl} frame={c.withAvatarFrame} size={46} />
+                  <span className="chat-row-main">
+                    <span className="chat-row-top">
+                      <span className="chat-row-name">
+                        {c.with}
+                        {c.muted ? " 🔕" : ""}
+                      </span>
+                      <span className="chat-row-time">{timeShort(c.lastMessageAt)}</span>
+                    </span>
+                    <span className="chat-row-bottom">
+                      <span className="chat-row-snippet">
+                        {c.incomingRequest
+                          ? "Message request"
+                          : c.lastMessage ?? "Say hi — start the conversation"}
+                      </span>
+                      {c.unread > 0 && (
+                        <span className="chat-row-unread">{c.unread > 9 ? "9+" : c.unread}</span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        {/* Right pane: the open chat, or a friendly empty state. */}
+        <section className="chat-pane">
+          {conversationId ? (
+            <Thread id={conversationId} onChanged={reload} />
+          ) : (
+            <div className="chat-empty">
+              <MailIcon cls="icon-lg" />
+              <p>Select a conversation, or start one with +</p>
+            </div>
+          )}
+        </section>
       </div>
     </AppShell>
   );

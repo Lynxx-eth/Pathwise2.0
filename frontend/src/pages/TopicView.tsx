@@ -8,6 +8,7 @@ import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { PuzzleIcon, SendIcon, SparklesIcon } from "../components/icons";
+import { Prose } from "../components/Prose";
 import { ErrorState, InlineError, Loading } from "../components/states";
 
 interface BreakdownSection {
@@ -84,15 +85,18 @@ function AskPanel({ topicId, topicName }: { topicId: string; topicName: string }
             <div
               className="card"
               style={{
-                padding: "8px 12px",
-                fontSize: 13.5,
-                whiteSpace: "pre-wrap",
+                padding: "10px 14px",
+                fontSize: 15,
                 ...(m.role === "assistant"
                   ? { borderColor: "var(--accent)" }
                   : { background: "var(--accent-light, var(--surface))" }),
               }}
             >
-              {m.content}
+              {m.role === "assistant" ? (
+                <Prose text={m.content} compact />
+              ) : (
+                <span style={{ whiteSpace: "pre-wrap" }}>{m.content}</span>
+              )}
             </div>
           </div>
         ))}
@@ -177,99 +181,82 @@ export default function TopicView() {
 
   return (
     <AppShell>
-      <Link
-        to={`/courses/${data.courseId}`}
-        style={{ fontSize: 12.5, color: "var(--ink-soft)" }}
-      >
-        ← {data.courseName}
-      </Link>
+      <div className="reading-col">
+        <Link
+          to={`/courses/${data.courseId}`}
+          style={{ fontSize: 13, color: "var(--ink-soft)" }}
+        >
+          ← {data.courseName}
+        </Link>
 
-      <div className="page-head" style={{ marginTop: 4, flexWrap: "wrap", gap: 10 }}>
-        <div>
-          <h1 className="page-title">{data.topicName}</h1>
-          <p className="page-sub">{breakdown.overview}</p>
+        <div className="page-head" style={{ marginTop: 6, flexWrap: "wrap", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 className="page-title">{data.topicName}</h1>
+          </div>
+          <button className="btn btn-primary" onClick={startQuiz} style={{ flexShrink: 0 }}>
+            <PuzzleIcon cls="icon" /> Quiz me on this
+          </button>
         </div>
-        <button className="btn btn-primary" onClick={startQuiz} style={{ flexShrink: 0 }}>
-          <PuzzleIcon cls="icon" /> Quiz me on this
-        </button>
-      </div>
 
-      <InlineError message={quizError} />
+        <InlineError message={quizError} />
 
-      <article style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {breakdown.sections.map((s, i) => (
-          <section key={i} className="card" style={{ padding: 18 }}>
-            <h2 style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 8 }}>
-              {s.heading}
-            </h2>
-            <p style={{ fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-              {s.body}
-            </p>
-            {s.example && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "10px 14px",
-                  borderLeft: "3px solid var(--accent)",
-                  background: "var(--accent-light, var(--surface))",
-                  borderRadius: 8,
-                  fontSize: 13.5,
-                  lineHeight: 1.6,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                <strong style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
-                  Worked example
-                </strong>
-                {s.example}
-              </div>
-            )}
-          </section>
-        ))}
-
-        {breakdown.misconceptions.length > 0 && (
-          <section className="card" style={{ padding: 18 }}>
-            <h2 style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 10 }}>
-              Watch out for these
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {breakdown.misconceptions.map((m, i) => (
-                <div key={i} style={{ fontSize: 13.5, lineHeight: 1.6 }}>
-                  <div style={{ color: "var(--danger)", fontWeight: 650 }}>
-                    ✗ {m.myth}
-                  </div>
-                  <div style={{ color: "var(--success)", marginTop: 2 }}>
-                    ✓ {m.truth}
-                  </div>
-                </div>
-              ))}
+        {/* The breakdown reads like a Claude answer: one flowing article,
+            real reading typography, thick bold highlights, callouts. */}
+        <article>
+          {breakdown.overview && (
+            <div className="reading-section">
+              <Prose text={breakdown.overview} />
             </div>
-          </section>
-        )}
+          )}
 
-        {breakdown.summary && (
-          <section
-            className="card"
-            style={{
-              padding: 18,
-              background: "var(--primary-light)",
-              border: "none",
-            }}
-          >
-            <h2 style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 8 }}>
-              Before your exam, remember
-            </h2>
-            <p style={{ fontSize: 14, lineHeight: 1.65 }}>{breakdown.summary}</p>
-          </section>
-        )}
-      </article>
+          {breakdown.sections.map((s, i) => (
+            <section key={i} className="reading-section">
+              <h2>{s.heading}</h2>
+              <Prose text={s.body} />
+              {s.example && (
+                <div className="callout">
+                  <span className="callout-label">Worked example</span>
+                  <Prose text={s.example} />
+                </div>
+              )}
+            </section>
+          ))}
 
-      {topicId && <AskPanel topicId={topicId} topicName={data.topicName} />}
+          {breakdown.misconceptions.length > 0 && (
+            <section className="reading-section">
+              <h2>Watch out for these</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {breakdown.misconceptions.map((m, i) => (
+                  <div key={i} style={{ fontSize: 15, lineHeight: 1.65 }}>
+                    <div style={{ color: "var(--danger)", fontWeight: 800 }}>
+                      ✗ {m.myth}
+                    </div>
+                    <div style={{ color: "var(--success)", marginTop: 3, fontWeight: 600 }}>
+                      ✓ {m.truth}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-      <div style={{ marginTop: 20, textAlign: "center" }}>
-        <button className="btn btn-primary" onClick={startQuiz}>
-          <PuzzleIcon cls="icon" /> Feeling ready? Quiz yourself
-        </button>
+          {breakdown.summary && (
+            <section className="reading-section">
+              <div className="callout callout-primary" style={{ marginTop: 0 }}>
+                <span className="callout-label">Before your exam, remember</span>
+                <Prose text={breakdown.summary} />
+              </div>
+            </section>
+          )}
+        </article>
+
+        {topicId && <AskPanel topicId={topicId} topicName={data.topicName} />}
+
+        <div style={{ marginTop: 24, textAlign: "center" }}>
+          <button className="btn btn-primary" onClick={startQuiz}>
+            <PuzzleIcon cls="icon" /> Feeling ready? Quiz yourself
+          </button>
+        </div>
       </div>
     </AppShell>
   );
