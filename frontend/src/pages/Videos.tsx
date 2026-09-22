@@ -9,7 +9,15 @@ import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
-import { PuzzleIcon, SparklesIcon } from "../components/icons";
+import {
+  BookmarkIcon,
+  ExternalIcon,
+  HeartIcon,
+  PlayIcon,
+  PuzzleIcon,
+  SearchIcon,
+  SparklesIcon,
+} from "../components/icons";
 import { InlineError, Spinner } from "../components/states";
 
 interface YouTubeRow {
@@ -50,19 +58,22 @@ function embedUrlOf(url: string): string | null {
   return `${e}?autoplay=1&rel=0&playsinline=1`;
 }
 
-/** One full-height slide. Only the active slide mounts its player. */
+/** One full-height slide. Only the active slide mounts its player; tapping
+ *  an inactive slide's thumbnail activates it (plays IN the app). */
 function Slide({
   v,
   active,
   isGuest,
   onEngage,
   onQuiz,
+  onActivate,
 }: {
   v: VideoRow;
   active: boolean;
   isGuest: boolean;
   onEngage: (v: VideoRow, kind: "like" | "save") => void;
   onQuiz: (v: VideoRow) => void;
+  onActivate: () => void;
 }) {
   const embed = embedUrlOf(v.url);
   return (
@@ -76,14 +87,25 @@ function Slide({
             allowFullScreen
             style={{ border: 0, width: "100%", height: "100%" }}
           />
-        ) : v.thumbnailUrl ? (
-          <img src={v.thumbnailUrl} alt="" className="feed-thumb" />
         ) : (
-          <div className="feed-thumb feed-thumb-empty">{v.subject}</div>
+          <button
+            className="feed-thumb-btn"
+            onClick={onActivate}
+            aria-label={`Play ${v.title}`}
+          >
+            {v.thumbnailUrl ? (
+              <img src={v.thumbnailUrl} alt="" className="feed-thumb" />
+            ) : (
+              <div className="feed-thumb feed-thumb-empty">{v.subject}</div>
+            )}
+            <span className="feed-play" aria-hidden="true">
+              <PlayIcon cls="icon-lg" />
+            </span>
+          </button>
         )}
       </div>
 
-      {/* Right action rail. */}
+      {/* Right action rail — system vectors, not emojis. */}
       <div className="feed-actions">
         {!isGuest && (
           <>
@@ -93,7 +115,7 @@ function Slide({
               aria-pressed={v.likedByMe}
               aria-label={v.likedByMe ? "Unlike" : "Like"}
             >
-              <span aria-hidden="true">{v.likedByMe ? "❤️" : "🤍"}</span>
+              <HeartIcon cls="icon" filled={v.likedByMe} />
               <small>Like</small>
             </button>
             <button
@@ -102,7 +124,7 @@ function Slide({
               aria-pressed={v.savedByMe}
               aria-label={v.savedByMe ? "Unsave" : "Save"}
             >
-              <span aria-hidden="true">🔖</span>
+              <BookmarkIcon cls="icon" filled={v.savedByMe} />
               <small>{v.savedByMe ? "Saved" : "Save"}</small>
             </button>
           </>
@@ -126,7 +148,7 @@ function Slide({
           aria-label="Watch at the source"
           title="Watch on YouTube"
         >
-          <span aria-hidden="true">↗</span>
+          <ExternalIcon cls="icon" />
           <small>Source</small>
         </a>
       </div>
@@ -150,7 +172,16 @@ export default function Videos() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // In-app player for SEARCH results — external only via the Source link.
+  const [player, setPlayer] = useState<YouTubeRow | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  function activateSlide(index: number) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: index * el.clientHeight, behavior: "smooth" });
+    setActiveIndex(index);
+  }
 
   const shelf = useApi<{ videos: VideoRow[]; subjects: string[] }>(
     subject ? `/api/videos?subject=${encodeURIComponent(subject)}` : "/api/videos",
@@ -272,7 +303,7 @@ export default function Videos() {
             aria-label="Search and categories"
             title="Search and categories"
           >
-            🔍
+            <SearchIcon cls="icon" />
           </button>
         </div>
 
@@ -306,6 +337,7 @@ export default function Videos() {
                 isGuest={Boolean(user?.isGuest)}
                 onEngage={engage}
                 onQuiz={quizFrom}
+                onActivate={() => activateSlide(i)}
               />
             ))}
           </div>
@@ -315,6 +347,55 @@ export default function Videos() {
           <div className="feed-error">
             <InlineError message={actionError} />
           </div>
+        )}
+
+        {/* In-app player for search results (item 1: play here first). */}
+        {player && (
+          <>
+            <div className="feed-sheet-backdrop" onClick={() => setPlayer(null)} />
+            <div className="video-modal" role="dialog" aria-label={player.title}>
+              <div className="video-modal-head">
+                <span style={{ fontWeight: 700, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {player.title}
+                </span>
+                <button
+                  className="icon-btn"
+                  onClick={() => setPlayer(null)}
+                  aria-label="Close player"
+                >
+                  ✕
+                </button>
+              </div>
+              {embedUrlOf(player.url) ? (
+                <div className="video-modal-frame">
+                  <iframe
+                    src={embedUrlOf(player.url)!}
+                    title={player.title}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    style={{ border: 0, width: "100%", height: "100%" }}
+                  />
+                </div>
+              ) : (
+                <p style={{ padding: 16, fontSize: 13.5, color: "var(--ink-soft)" }}>
+                  This one can't be embedded — use the source link below.
+                </p>
+              )}
+              <div className="video-modal-foot">
+                <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+                  {player.channel} · YouTube
+                </span>
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={player.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <ExternalIcon cls="icon-sm" /> Source
+                </a>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Search + categories sheet. */}
@@ -400,19 +481,20 @@ export default function Videos() {
                     </p>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {/* Tapping PLAYS IN THE APP — YouTube only via Source. */}
                       {searchResult.results.map((v) => (
-                        <a
+                        <button
                           key={v.videoId}
-                          href={v.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
                           className="member-row"
-                          style={{ textDecoration: "none" }}
+                          onClick={() => {
+                            setPlayer(v);
+                            setSheetOpen(false);
+                          }}
                         >
                           {v.thumbnailUrl ? (
                             <img src={v.thumbnailUrl} alt="" style={{ width: 92, borderRadius: 8, flexShrink: 0 }} />
                           ) : null}
-                          <span style={{ minWidth: 0 }}>
+                          <span style={{ minWidth: 0, flex: 1 }}>
                             <span style={{ display: "block", fontWeight: 650, fontSize: 13, lineHeight: 1.35 }}>
                               {v.title}
                             </span>
@@ -420,7 +502,8 @@ export default function Videos() {
                               {v.channel} · YouTube
                             </span>
                           </span>
-                        </a>
+                          <PlayIcon cls="icon-sm" style={{ color: "var(--primary)", flexShrink: 0 }} />
+                        </button>
                       ))}
                     </div>
                   )}

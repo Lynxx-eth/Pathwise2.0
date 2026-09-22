@@ -134,6 +134,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setToken(res.token);
     setUser(res.user);
+    // Brand-new account → show the product tour once (components/Tour.tsx).
+    try {
+      localStorage.setItem("pathwise_show_tour", "1");
+    } catch {
+      // Storage blocked — they just miss the tour.
+    }
   }
 
   async function signin(email: string, password: string) {
@@ -169,6 +175,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The claim re-signs the token — the old one carries the guest identity.
     setToken(res.token);
     setUser(res.user);
+    // Claiming IS the real signup moment for a guest — tour applies too.
+    try {
+      localStorage.setItem("pathwise_show_tour", "1");
+    } catch {
+      // Storage blocked — they just miss the tour.
+    }
   }
 
   async function acceptPrivacy() {

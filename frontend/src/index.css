@@ -833,6 +833,35 @@ html, body { overflow-x: hidden; }
   75% { transform: translateX(4px); }
 }
 
+/* ---- First-run product tour ---- */
+.tour-backdrop {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(10, 20, 15, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.tour-card {
+  width: 420px; max-width: 100%;
+  background: var(--surface); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+  padding: 30px 26px 22px;
+}
+.tour-step { text-align: center; min-height: 190px; }
+.tour-icon {
+  width: 64px; height: 64px; border-radius: var(--r-md); margin: 0 auto 16px;
+  background: linear-gradient(155deg, #22C382, var(--primary) 55%, var(--primary-dark));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, 0 8px 20px -4px rgba(10,92,64,0.45);
+}
+.tour-step h2 { font-size: 19px; margin-bottom: 8px; }
+.tour-step p { font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); margin: 0; }
+.tour-dots { display: flex; gap: 6px; justify-content: center; margin: 18px 0 16px; }
+.tour-dots span {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+  transition: background var(--t-fast) ease, transform var(--t-fast) ease;
+}
+.tour-dots span.on { background: var(--primary); transform: scale(1.25); }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
 /* 3D flashcard flip (Quiz review deck). */
 .flip-scene { perspective: 1100px; }
 .flip-inner { position: relative; width: 100%; transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; }
@@ -889,7 +918,9 @@ html, body { overflow-x: hidden; }
   background: var(--surface); border-bottom: 1px solid var(--border);
   flex-shrink: 0; min-height: 58px;
 }
-.chat-back { display: none; }
+/* Back-to-inbox is always available (WhatsApp Web keeps the list visible;
+   we also give an explicit exit — and Escape does the same). */
+.chat-back { display: inline-flex; }
 .chat-body {
   flex: 1; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 8px;
@@ -945,7 +976,13 @@ html, body { overflow-x: hidden; }
 }
 :root[data-theme="dark"] .dm-row.theirs .dm-quote,
 :root[data-theme="dark"] .dm-row.ai .dm-quote { background: rgba(255,255,255,0.06); }
-.dm-meta { font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; padding: 0 4px; }
+.dm-meta {
+  font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; padding: 0 4px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.dm-status { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; }
+.dm-status .icon-sm { width: 13px; height: 13px; }
+.dm-status.seen { color: var(--primary); }
 .dm-ai-tag {
   font-size: 10.5px; font-weight: 700; color: var(--primary-dark);
   margin-bottom: 4px; display: flex; gap: 4px; align-items: center;
@@ -1093,6 +1130,37 @@ html, body { overflow-x: hidden; }
 .feed-error { position: absolute; left: 16px; right: 16px; top: 60px; z-index: 46; }
 .feed-sheet-backdrop {
   position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 48;
+}
+/* Tap-to-play thumbnail on inactive slides. */
+.feed-thumb-btn {
+  position: relative; width: 100%; height: 100%; border: none;
+  background: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.feed-play {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(0,0,0,0.55); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--t-fast) ease, background var(--t-fast) ease;
+}
+.feed-thumb-btn:hover .feed-play { transform: translate(-50%, -50%) scale(1.08); background: rgba(0,0,0,0.7); }
+/* In-app player modal for search results. */
+.video-modal {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(720px, calc(100% - 24px)); z-index: 49;
+  background: var(--surface); color: var(--ink);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: menuIn var(--t-med) var(--ease-out) both;
+}
+.video-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.video-modal-frame { aspect-ratio: 16 / 9; background: #000; }
+.video-modal-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 14px;
 }
 .feed-sheet {
   position: absolute; left: 0; right: 0; top: 0; z-index: 49;

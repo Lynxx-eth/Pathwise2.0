@@ -208,13 +208,18 @@ export default async function dmRoutes(app: FastifyInstance) {
           a: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
           b: { select: { id: true, name: true, username: true, avatarPath: true, avatarFrame: true } },
           messages: { orderBy: { createdAt: "asc" }, take: 200 },
-          states: { where: { userId: me } },
+          // BOTH participants' states: mine for mute, theirs for read
+          // receipts ("Seen" = their lastReadAt covers my message).
+          states: true,
         },
       });
       if (!c || c.status === "declined") {
         return reply.code(404).send({ error: "Conversation not found" });
       }
       const other = c.aId === me ? c.b : c.a;
+      const myState = c.states.find((s) => s.userId === me);
+      const otherReadAt =
+        c.states.find((s) => s.userId === other.id)?.lastReadAt ?? null;
 
       await prisma.conversationState.upsert({
         where: { conversationId_userId: { conversationId: id, userId: me } },
@@ -236,14 +241,17 @@ export default async function dmRoutes(app: FastifyInstance) {
           withAvatarFrame: other.avatarFrame ?? "classic",
           status: c.status,
           incomingRequest: c.status === "pending" && c.requesterId !== me,
-          muted: Boolean(c.states[0]?.mutedAt),
+          muted: Boolean(myState?.mutedAt),
           messages: c.messages.map((m) => {
             const quoted = m.replyToId ? byId.get(m.replyToId) : undefined;
+            const mine = m.senderId === me;
             return {
               id: m.id,
-              mine: m.senderId === me,
+              mine,
               fromAi: m.senderId === botId,
               body: m.body,
+              // Read receipt for MY messages only (WhatsApp semantics).
+              seen: mine && otherReadAt !== null && otherReadAt >= m.createdAt,
               replyTo: quoted
                 ? {
                     id: quoted.id,

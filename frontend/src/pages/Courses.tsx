@@ -4,6 +4,7 @@ import AppShell from "../components/AppShell";
 import { useApi } from "../lib/useApi";
 import { BookIcon, PlusIcon, FlameIcon, AlertIcon, SparklesIcon } from "../components/icons";
 import { StaggerContainer, StaggerItem } from "../components/motion";
+import { Tour } from "../components/Tour";
 import { EmptyState, ErrorState, SkeletonGrid } from "../components/states";
 
 interface CourseCard {
@@ -52,6 +53,8 @@ export default function Courses() {
 
   return (
     <AppShell>
+      {/* First-run walkthrough — renders only right after signup. */}
+      <Tour />
       <div className="page-head" style={{ marginBottom: 6 }}>
         <div>
           <div className="eyebrow">Your courses</div>

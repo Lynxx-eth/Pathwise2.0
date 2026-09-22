@@ -15,6 +15,9 @@ import { Avatar } from "../components/Avatar";
 import { Prose } from "../components/Prose";
 import {
   ArrowLeftIcon,
+  CheckIcon,
+  ClockIcon,
+  DoubleCheckIcon,
   MailIcon,
   PlusIcon,
   SendIcon,
@@ -50,6 +53,10 @@ interface ThreadMessage {
   mine: boolean;
   fromAi: boolean;
   body: string;
+  /** Read receipt for my messages: the other side has opened the thread since. */
+  seen?: boolean;
+  /** Client-only: optimistic message still in flight. */
+  pending?: boolean;
   replyTo: { id: string; body: string; mine: boolean; fromAi: boolean } | null;
   createdAt: string;
 }
@@ -132,7 +139,24 @@ function Bubble({
           </button>
         )}
       </div>
-      <span className="dm-meta">{timeShort(m.createdAt)}</span>
+      <span className="dm-meta">
+        {timeShort(m.createdAt)}
+        {/* WhatsApp-style delivery status on MY messages. */}
+        {m.mine &&
+          (m.pending ? (
+            <span className="dm-status" title="Sending">
+              <ClockIcon cls="icon-sm" /> Sending
+            </span>
+          ) : m.seen ? (
+            <span className="dm-status seen" title="Seen">
+              <DoubleCheckIcon cls="icon-sm" /> Seen
+            </span>
+          ) : (
+            <span className="dm-status" title="Sent">
+              <CheckIcon cls="icon-sm" /> Sent
+            </span>
+          ))}
+      </span>
     </motion.div>
   );
 }
@@ -160,6 +184,15 @@ function Thread({
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  // Escape closes the chat back to the inbox — WhatsApp Web behavior.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") navigate("/messages");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navigate]);
+
   const messageCount = data?.conversation.messages.length ?? 0;
   useEffect(() => {
     const el = scrollRef.current;
@@ -176,6 +209,7 @@ function Thread({
       id: `tmp-${Date.now()}`,
       mine: true,
       fromAi: false,
+      pending: true,
       body,
       replyTo: quoted
         ? {
