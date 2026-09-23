@@ -65,6 +65,7 @@ export type EventName =
   | "dm_request_responded"
   | "dm_block_toggled"
   | "user_reported"
+  | "dm_attachment_sent"
   // Home Pathwise chat (UX overhaul Phase 5)
   | "chat_attachment_parsed"
   | "home_chat_turn"

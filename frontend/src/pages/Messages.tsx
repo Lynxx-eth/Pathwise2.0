@@ -8,22 +8,31 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import AppShell from "../components/AppShell";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, getToken } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { useAuth } from "../lib/auth";
-import { Avatar } from "../components/Avatar";
+import { Avatar, API_BASE } from "../components/Avatar";
 import { Prose } from "../components/Prose";
 import {
   ArrowLeftIcon,
   CheckIcon,
   ClockIcon,
   DoubleCheckIcon,
+  ImageIcon,
   MailIcon,
+  MicIcon,
+  PaperclipIcon,
   PlusIcon,
   SendIcon,
   SparklesIcon,
 } from "../components/icons";
 import { UserActions } from "../components/UserActions";
+import {
+  AttachmentView,
+  RecordingBar,
+  useVoiceRecorder,
+  type Attachment,
+} from "../components/chatAttachments";
 import {
   EmptyState,
   ErrorState,
@@ -53,6 +62,8 @@ interface ThreadMessage {
   mine: boolean;
   fromAi: boolean;
   body: string;
+  /** Photo, document or voice note sent with this message. */
+  attachment?: Attachment | null;
   /** Read receipt for my messages: the other side has opened the thread since. */
   seen?: boolean;
   /** Client-only: optimistic message still in flight. */
@@ -128,6 +139,11 @@ function Bubble({
             {m.replyTo.body}
           </div>
         )}
+        {m.attachment && (
+          <div className={m.body ? "attach-with-caption" : undefined}>
+            <AttachmentView attachment={m.attachment} />
+          </div>
+        )}
         {m.fromAi ? <Prose text={m.body} compact /> : m.body}
         {!m.mine && !m.fromAi && (
           <button
@@ -175,9 +191,47 @@ function Thread({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<ThreadMessage | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLInputElement>(null);
   const { data, loading, error: loadError, reload, refresh, setData } =
     useApi<ThreadResponse>(`/api/dms/${id}`);
+
+  /** One path for every attachment kind — photo, document, voice note. */
+  async function sendAttachment(file: File | Blob, filename: string, seconds?: number) {
+    setSendingAttachment(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file, filename);
+      if (draft.trim()) form.append("body", draft.trim());
+      if (seconds != null) form.append("seconds", String(Math.round(seconds)));
+      const res = await fetch(`${API_BASE}/api/dms/${id}/attachments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new ApiError(res.status, body.error ?? "Couldn't send that.");
+      }
+      setDraft("");
+      await refresh();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't send that attachment.");
+    } finally {
+      setSendingAttachment(false);
+      setAttachOpen(false);
+    }
+  }
+
+  const recorder = useVoiceRecorder((blob, seconds) => {
+    const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+    void sendAttachment(blob, `voice.${ext}`, seconds);
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => void refresh(), 3000);
@@ -378,34 +432,105 @@ function Thread({
             </button>
           </div>
         )}
-        {(c.status === "active" || !c.incomingRequest) && (
-          <div className="chat-composer">
-            <label className="sr-only" htmlFor="dm-draft">Message</label>
-            <textarea
-              id="dm-draft"
-              className="input"
-              rows={1}
-              placeholder="Message… (@pathwise asks the AI)"
-              value={draft}
-              maxLength={3000}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
+        {recorder.error && <InlineError message={recorder.error} />}
+
+        {(c.status === "active" || !c.incomingRequest) &&
+          (recorder.recording ? (
+            <RecordingBar
+              elapsed={recorder.elapsed}
+              onCancel={recorder.cancel}
+              onSend={recorder.stop}
             />
-            <button
-              className="btn btn-primary chat-send"
-              onClick={send}
-              disabled={busy || draft.trim().length === 0}
-              aria-label="Send"
-            >
-              {busy ? <Spinner /> : <SendIcon cls="icon" />}
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="chat-composer">
+              {/* Attach menu: photo or document (WhatsApp's paperclip). */}
+              <div className="attach-wrap">
+                <button
+                  className={`icon-btn ${attachOpen ? "open" : ""}`}
+                  onClick={() => setAttachOpen((o) => !o)}
+                  aria-label="Attach a photo or document"
+                  aria-expanded={attachOpen}
+                  disabled={sendingAttachment}
+                >
+                  {sendingAttachment ? <Spinner /> : <PaperclipIcon cls="icon" />}
+                </button>
+                {attachOpen && (
+                  <div className="attach-menu">
+                    <button onClick={() => photoRef.current?.click()}>
+                      <ImageIcon cls="icon-sm" /> Photo
+                    </button>
+                    <button onClick={() => docRef.current?.click()}>
+                      <PaperclipIcon cls="icon-sm" /> Document
+                    </button>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void sendAttachment(f, f.name);
+                  e.target.value = "";
+                }}
+                aria-label="Send a photo"
+              />
+              <input
+                ref={docRef}
+                type="file"
+                accept=".pdf,.docx,.pptx"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void sendAttachment(f, f.name);
+                  e.target.value = "";
+                }}
+                aria-label="Send a document"
+              />
+
+              <label className="sr-only" htmlFor="dm-draft">Message</label>
+              <textarea
+                id="dm-draft"
+                className="input"
+                rows={1}
+                placeholder="Message… (@pathwise asks the AI)"
+                value={draft}
+                maxLength={3000}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+
+              {/* Mic when there's nothing typed, send when there is — the
+                  behavior both WhatsApp and Telegram use. */}
+              {draft.trim().length === 0 && recorder.supported ? (
+                <button
+                  className="btn btn-primary chat-send"
+                  onClick={recorder.start}
+                  disabled={sendingAttachment}
+                  aria-label="Record a voice note"
+                  title="Record a voice note"
+                >
+                  <MicIcon cls="icon" />
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary chat-send"
+                  onClick={send}
+                  disabled={busy || draft.trim().length === 0}
+                  aria-label="Send"
+                >
+                  {busy ? <Spinner /> : <SendIcon cls="icon" />}
+                </button>
+              )}
+            </div>
+          ))}
       </div>
     </>
   );

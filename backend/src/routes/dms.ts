@@ -16,6 +16,12 @@ import { deliver } from "../lib/notifications.js";
 import { track } from "../lib/analytics.js";
 import { avatarUrlFor } from "./profile.js";
 import { mentionsPathwise, pathwiseBotId, respondInDm } from "../lib/pathwiseBot.js";
+import {
+  attachmentViewOf,
+  saveAttachment,
+  validateAttachment,
+} from "../lib/chatAttachments.js";
+import { storage } from "../lib/storage.js";
 
 const GUEST_MESSAGE = "Messages need an account — create one to keep your identity.";
 
@@ -98,7 +104,20 @@ export default async function dmRoutes(app: FastifyInstance) {
           incomingRequest: c.status === "pending" && c.requesterId !== me,
           muted: Boolean(state?.mutedAt),
           unread,
-          lastMessage: c.messages[0]?.body.slice(0, 80) ?? null,
+          // An attachment-only message needs a label in the list, the way
+          // WhatsApp shows "Photo" / "Voice message".
+          lastMessage:
+            c.messages[0] === undefined
+              ? null
+              : c.messages[0].body.trim().length > 0
+                ? c.messages[0].body.slice(0, 80)
+                : c.messages[0].attachKind === "image"
+                  ? "📷 Photo"
+                  : c.messages[0].attachKind === "voice"
+                    ? "🎤 Voice message"
+                    : c.messages[0].attachKind === "file"
+                      ? `📄 ${c.messages[0].attachName ?? "Document"}`
+                      : null,
           lastMessageAt: c.lastMessageAt,
         });
       }
@@ -250,6 +269,7 @@ export default async function dmRoutes(app: FastifyInstance) {
               mine,
               fromAi: m.senderId === botId,
               body: m.body,
+              attachment: attachmentViewOf(m, "/api/dms/messages"),
               // Read receipt for MY messages only (WhatsApp semantics).
               seen: mine && otherReadAt !== null && otherReadAt >= m.createdAt,
               replyTo: quoted
@@ -338,6 +358,127 @@ export default async function dmRoutes(app: FastifyInstance) {
       return reply.code(201).send({
         message: { id: message.id, body: message.body, createdAt: message.createdAt, mine: true },
       });
+    }
+  );
+
+  // Send an ATTACHMENT (photo, document or voice note) into a conversation.
+  // Multipart; an optional "body" field rides along as the caption.
+  app.post(
+    "/api/dms/:id/attachments",
+    {
+      preHandler: [app.authenticate],
+      config: { rateLimit: { max: 30, timeWindow: "10 minutes" } },
+    },
+    async (req, reply) => {
+      if (await isGuestUser(req.user.sub)) {
+        return reply.code(403).send({ error: GUEST_MESSAGE });
+      }
+      const me = req.user.sub;
+      const { id } = req.params as { id: string };
+
+      const c = await prisma.conversation.findFirst({
+        where: { id, OR: [{ aId: me }, { bId: me }] },
+      });
+      if (!c) return reply.code(404).send({ error: "Conversation not found" });
+      const other = c.aId === me ? c.bId : c.aId;
+      if (await isBlockedEitherWay(me, other)) {
+        return reply.code(403).send({ error: "You can't message this learner." });
+      }
+      const sendable = canSend(c, me);
+      if (!sendable.ok) {
+        return reply.code(403).send({ error: sendable.reason });
+      }
+
+      const data = await req.file();
+      if (!data) return reply.code(400).send({ error: "No file uploaded" });
+      const buffer = await data.toBuffer();
+
+      const checked = validateAttachment(data.filename ?? "upload", data.mimetype, buffer);
+      if (!checked.ok) {
+        return reply.code(checked.reason.status).send({ error: checked.reason.error });
+      }
+
+      // Caption + voice duration travel as multipart fields.
+      const fields = data.fields as Record<string, { value?: unknown } | undefined>;
+      const rawCaption = fields?.body?.value;
+      const caption = typeof rawCaption === "string" ? rawCaption.trim().slice(0, 3000) : "";
+      if (caption) {
+        const screened = screenText(caption);
+        if (!screened.ok) {
+          return reply.code(400).send({ error: screened.reason });
+        }
+      }
+      const rawSeconds = fields?.seconds?.value;
+      const seconds =
+        typeof rawSeconds === "string" && Number.isFinite(Number(rawSeconds))
+          ? Math.max(0, Math.min(3600, Math.round(Number(rawSeconds))))
+          : null;
+
+      const stored = await saveAttachment(me, checked.value, buffer);
+      const message = await prisma.directMessage.create({
+        data: {
+          conversationId: id,
+          senderId: me,
+          body: caption,
+          attachPath: stored.storagePath,
+          attachKind: checked.value.kind,
+          attachName: checked.value.kind === "voice" ? null : (data.filename ?? null),
+          attachMime: checked.value.mime,
+          attachSize: stored.sizeBytes,
+          attachSeconds: checked.value.kind === "voice" ? seconds : null,
+        },
+      });
+      await prisma.conversation.update({
+        where: { id },
+        data: { lastMessageAt: message.createdAt },
+      });
+      await track(me, "dm_attachment_sent", { conversationId: id, kind: checked.value.kind });
+
+      return reply.code(201).send({
+        message: { id: message.id, kind: checked.value.kind, createdAt: message.createdAt },
+      });
+    }
+  );
+
+  // Serve one attachment. Participants only — attachments are private, so
+  // unlike avatars this is auth'd and never cached publicly.
+  app.get(
+    "/api/dms/messages/:messageId/attachment",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const me = req.user.sub;
+      const { messageId } = req.params as { messageId: string };
+      const message = await prisma.directMessage.findFirst({
+        where: {
+          id: messageId,
+          conversation: { OR: [{ aId: me }, { bId: me }] },
+        },
+        select: {
+          attachPath: true,
+          attachMime: true,
+          attachName: true,
+          attachKind: true,
+        },
+      });
+      if (!message?.attachPath) {
+        return reply.code(404).send({ error: "Attachment not found" });
+      }
+      try {
+        const buffer = await storage.read(message.attachPath);
+        reply.header("Cache-Control", "private, max-age=86400");
+        if (message.attachKind === "file" && message.attachName) {
+          // Documents download with their original name; photos and voice
+          // notes render inline.
+          reply.header(
+            "Content-Disposition",
+            `attachment; filename="${message.attachName.replace(/[^\w.\-]/g, "_")}"`
+          );
+        }
+        reply.type(message.attachMime ?? "application/octet-stream");
+        return reply.send(buffer);
+      } catch {
+        return reply.code(404).send({ error: "Attachment not found" });
+      }
     }
   );
 

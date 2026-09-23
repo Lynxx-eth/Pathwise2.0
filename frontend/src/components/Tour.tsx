@@ -20,6 +20,7 @@ import {
   SparklesIcon,
   UploadIcon,
 } from "./icons";
+import { LogoMark } from "./Logo";
 
 const SHOW_KEY = "pathwise_show_tour";
 const DONE_KEY = "pathwise_tour_done";
@@ -97,9 +98,83 @@ function shouldShow(): boolean {
   }
 }
 
+/** The curtain-raiser after the last step: logo assembles, wordmark and
+ *  tagline rise, rings bloom outward, then the door opens to the app. */
+function WelcomeFrame({ onEnter }: { onEnter: () => void }) {
+  // Auto-advance if they just watch it — but the button is always there.
+  useEffect(() => {
+    const t = window.setTimeout(onEnter, 6000);
+    return () => window.clearTimeout(t);
+  }, [onEnter]);
+
+  return (
+    <motion.div
+      className="welcome-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Blooming rings behind the mark. */}
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="welcome-ring"
+          initial={{ scale: 0.3, opacity: 0 }}
+          animate={{ scale: [0.3, 1.9], opacity: [0.55, 0] }}
+          transition={{
+            duration: 2.8,
+            delay: 0.35 + i * 0.55,
+            repeat: Infinity,
+            repeatDelay: 0.5,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+
+      <motion.div
+        className="welcome-mark"
+        initial={{ scale: 0.2, opacity: 0, rotate: -35 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 180, damping: 14, delay: 0.15 }}
+      >
+        <LogoMark size={96} />
+      </motion.div>
+
+      <motion.h1
+        className="welcome-title"
+        initial={{ opacity: 0, y: 22 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.75, duration: 0.5, ease: EASE }}
+      >
+        Welcome to Pathwise
+      </motion.h1>
+
+      <motion.p
+        className="welcome-tagline"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.95, duration: 0.5, ease: EASE }}
+      >
+        Your course material, understood.
+      </motion.p>
+
+      <motion.button
+        className="tour-btn solid welcome-cta"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.25, duration: 0.45, ease: EASE }}
+        onClick={onEnter}
+      >
+        Enter Pathwise
+      </motion.button>
+    </motion.div>
+  );
+}
+
 export function Tour() {
   const [open, setOpen] = useState(shouldShow);
   const [[step, dir], setStep] = useState<[number, number]>([0, 0]);
+  const [welcome, setWelcome] = useState(false);
 
   const last = step === STEPS.length - 1;
 
@@ -108,7 +183,8 @@ export function Tour() {
     setStep([next, next > step ? 1 : -1]);
   }
 
-  function finish() {
+  /** Stamp it done and close — used by Skip and by the welcome frame. */
+  function close() {
     try {
       localStorage.removeItem(SHOW_KEY);
       localStorage.setItem(DONE_KEY, "1");
@@ -118,20 +194,30 @@ export function Tour() {
     setOpen(false);
   }
 
-  // Desktop: arrow keys move, Escape skips.
+  /** Finishing the last step raises the welcome curtain first. */
+  function finish() {
+    if (last) {
+      setWelcome(true);
+      return;
+    }
+    close();
+  }
+
+  // Desktop: arrow keys move, Escape skips. (Disabled on the welcome frame.)
   useEffect(() => {
-    if (!open) return;
+    if (!open || welcome) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") go(step + 1);
       else if (e.key === "ArrowLeft") go(step - 1);
-      else if (e.key === "Escape") finish();
+      else if (e.key === "Escape") close();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step]);
+  }, [open, step, welcome]);
 
   if (!open) return null;
+  if (welcome) return <WelcomeFrame onEnter={close} />;
 
   const s = STEPS[step];
 
@@ -183,7 +269,7 @@ export function Tour() {
         />
       </div>
 
-      <button className="tour-skip" onClick={finish}>
+      <button className="tour-skip" onClick={close}>
         Skip tour
       </button>
 

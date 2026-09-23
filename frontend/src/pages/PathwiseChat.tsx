@@ -1,12 +1,15 @@
-// Chat with Pathwise (UX overhaul Phase 5): a dedicated AI chat straight
-// from Home. Brutally honest, lightly Socratic. The + button attaches a
-// PDF/DOCX/PPTX/photo — parsed server-side, then the conversation is about
-// THAT document. History lives in sessionStorage so a refresh keeps it.
+// Chat with Pathwise — modelled on Claude's interface: a quiet centered
+// reading column, no bubble around the AI's answer (just prose with a small
+// avatar beside it), the user's turn in a soft rounded block, a greeting
+// screen with starter prompts, and a floating rounded composer that grows
+// with the text. Attach a PDF/DOC/photo with + and talk about it.
 import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import { api, ApiError } from "../lib/api";
-import { PlusIcon, SendIcon, SparklesIcon } from "../components/icons";
+import { LogoMark } from "../components/Logo";
+import { PaperclipIcon, SendIcon, SparklesIcon } from "../components/icons";
 import { Prose } from "../components/Prose";
+import { SpeakButton } from "../components/speech";
 import { InlineError, Spinner } from "../components/states";
 
 interface ChatTurn {
@@ -22,6 +25,13 @@ interface Attachment {
 }
 
 const STORE_KEY = "pathwise_home_chat";
+
+const STARTERS = [
+  "Explain a concept I keep getting wrong",
+  "Quiz me on what I studied this week",
+  "Turn my notes into a revision plan",
+  "What should I study first for my exam?",
+];
 
 function loadStored(): { turns: ChatTurn[]; attachment: Attachment | null } {
   try {
@@ -42,7 +52,8 @@ export default function PathwiseChat() {
   const [attaching, setAttaching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     try {
@@ -53,9 +64,16 @@ export default function PathwiseChat() {
   }, [turns, attachment]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns.length, busy]);
+
+  /** Grow the composer with the text, up to a cap — Claude's behavior. */
+  function autoGrow() {
+    const el = boxRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }
 
   async function attach(file: File | undefined) {
     if (!file) return;
@@ -68,7 +86,7 @@ export default function PathwiseChat() {
         ...t,
         {
           role: "assistant",
-          content: `Got it — ${res.filename} (${Math.round(res.chars / 1000)}k characters${res.truncated ? ", using the first part" : ""}). Ask me anything about it, or tell me what you're trying to learn.`,
+          content: `Got it — **${res.filename}** (${Math.round(res.chars / 1000)}k characters${res.truncated ? ", working from the first part" : ""}).\n\nAsk me anything about it, or tell me what you're trying to learn from it.`,
         },
       ]);
     } catch (err) {
@@ -79,17 +97,17 @@ export default function PathwiseChat() {
     }
   }
 
-  async function send() {
-    const content = draft.trim();
+  async function send(text?: string) {
+    const content = (text ?? draft).trim();
     if (content.length === 0 || busy) return;
     setBusy(true);
     setError(null);
     const next: ChatTurn[] = [...turns, { role: "user", content }];
     setTurns(next);
     setDraft("");
+    if (boxRef.current) boxRef.current.style.height = "auto";
     try {
       const res = await api.post<{ reply: string }>("/api/chat", {
-        // Send the last 20 turns — enough thread, bounded payload.
         messages: next.slice(-20),
         attachmentText: attachment?.text,
         attachmentName: attachment?.filename,
@@ -111,121 +129,151 @@ export default function PathwiseChat() {
     setError(null);
   }
 
+  const empty = turns.length === 0;
+
   return (
     <AppShell>
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">Chat with Pathwise</h1>
-          <p className="page-sub">
-            An honest study companion — it will tell you straight what you
-            haven't understood yet. Attach a document with + to talk about it.
-          </p>
-        </div>
-        {(turns.length > 0 || attachment) && (
-          <button className="btn btn-ghost btn-sm" onClick={reset}>
-            New chat
-          </button>
-        )}
-      </div>
-
-      {attachment && (
-        <div className="reply-bar" style={{ marginBottom: 10 }}>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            📄 <strong>{attachment.filename}</strong> attached
-            {attachment.truncated ? " (long file — using the first part)" : ""}
+      <div className="ai-chat">
+        {/* Slim header — identity left, new-chat right. */}
+        <div className="ai-chat-head">
+          <span className="ai-chat-id">
+            <LogoMark size={22} />
+            Pathwise
           </span>
-          <button
-            className="icon-btn"
-            style={{ width: 28, height: 28 }}
-            onClick={() => setAttachment(null)}
-            aria-label="Remove attachment"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      <div className="card" style={{ padding: 16 }}>
-        <div className="dm-thread" ref={scrollRef} style={{ maxHeight: "min(62vh, 640px)" }}>
-          {turns.length === 0 && (
-            <div style={{ textAlign: "center", padding: "34px 12px", color: "var(--ink-soft)" }}>
-              <SparklesIcon cls="icon-lg" style={{ margin: "0 auto 10px" }} />
-              <p style={{ fontSize: 14, margin: 0 }}>
-                Ask about anything you're studying — or attach your lecture
-                notes and get grilled on them.
-              </p>
-            </div>
+          {(turns.length > 0 || attachment) && (
+            <button className="btn btn-ghost btn-sm" onClick={reset}>
+              New chat
+            </button>
           )}
-          {turns.map((t, i) => (
-            <div key={i} className={`dm-row bubble-in ${t.role === "user" ? "mine" : "ai"}`}>
-              <div className="dm-bubble">
-                {t.role === "assistant" ? (
-                  <>
-                    <div className="dm-ai-tag">
-                      <SparklesIcon cls="icon-sm" /> Pathwise
-                    </div>
-                    <Prose text={t.content} compact />
-                  </>
+        </div>
+
+        <div className="ai-chat-scroll">
+          <div className="ai-chat-col">
+            {empty ? (
+              <div className="ai-greeting">
+                <LogoMark size={54} />
+                <h1>What are we figuring out?</h1>
+                <p>
+                  I'll be straight with you about what you haven't understood yet
+                  — that's the point. Attach a document with <strong>+</strong> and
+                  we'll work through it together.
+                </p>
+                <div className="ai-starters">
+                  {STARTERS.map((s) => (
+                    <button key={s} onClick={() => void send(s)} disabled={busy}>
+                      <SparklesIcon cls="icon-sm" /> {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              turns.map((t, i) =>
+                t.role === "user" ? (
+                  <div key={i} className="ai-turn user">
+                    <div className="ai-user-block">{t.content}</div>
+                  </div>
                 ) : (
-                  t.content
-                )}
+                  <div key={i} className="ai-turn assistant">
+                    <span className="ai-avatar" aria-hidden="true">
+                      <LogoMark size={26} />
+                    </span>
+                    <div className="ai-answer">
+                      <Prose text={t.content} />
+                      <div className="ai-answer-tools">
+                        <SpeakButton text={t.content} iconOnly />
+                      </div>
+                    </div>
+                  </div>
+                )
+              )
+            )}
+
+            {busy && (
+              <div className="ai-turn assistant">
+                <span className="ai-avatar" aria-hidden="true">
+                  <LogoMark size={26} />
+                </span>
+                <div className="ai-answer ai-thinking">
+                  <span /><span /><span />
+                </div>
               </div>
-            </div>
-          ))}
-          {busy && (
-            <div className="dm-row ai">
-              <div className="dm-bubble" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Spinner size={14} /> thinking…
-              </div>
-            </div>
-          )}
+            )}
+
+            <div ref={endRef} />
+          </div>
         </div>
 
-        <InlineError message={error} />
+        {/* Floating composer. */}
+        <div className="ai-composer-wrap">
+          <div className="ai-chat-col">
+            <InlineError message={error} />
+            {attachment && (
+              <div className="reply-bar" style={{ marginBottom: 8 }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  📄 <strong>{attachment.filename}</strong> attached
+                  {attachment.truncated ? " (long file — using the first part)" : ""}
+                </span>
+                <button
+                  className="icon-btn"
+                  style={{ width: 28, height: 28 }}
+                  onClick={() => setAttachment(null)}
+                  aria-label="Remove attachment"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button
-            className="icon-btn"
-            onClick={() => fileRef.current?.click()}
-            disabled={attaching || busy}
-            aria-label="Attach a document"
-            title="Attach a PDF, DOCX, PPTX or photo"
-          >
-            {attaching ? <Spinner size={16} /> : <PlusIcon cls="icon" />}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-            style={{ display: "none" }}
-            onChange={(e) => attach(e.target.files?.[0])}
-            aria-label="Attach a document to chat about"
-          />
-          <label className="sr-only" htmlFor="pw-chat-draft">Message Pathwise</label>
-          <textarea
-            id="pw-chat-draft"
-            className="input"
-            rows={2}
-            style={{ flex: 1 }}
-            placeholder={attachment ? `Ask about ${attachment.filename}…` : "Ask Pathwise anything…"}
-            value={draft}
-            maxLength={4000}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={send}
-            disabled={busy || draft.trim().length === 0}
-            aria-label="Send"
-          >
-            {busy ? <Spinner /> : <SendIcon cls="icon" />}
-          </button>
+            <div className="ai-composer">
+              <button
+                className="icon-btn"
+                onClick={() => fileRef.current?.click()}
+                disabled={attaching || busy}
+                aria-label="Attach a document"
+                title="Attach a PDF, DOCX, PPTX or photo"
+              >
+                {attaching ? <Spinner size={16} /> : <PaperclipIcon cls="icon" />}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => attach(e.target.files?.[0])}
+                aria-label="Attach a document to chat about"
+              />
+              <label className="sr-only" htmlFor="pw-chat-draft">Message Pathwise</label>
+              <textarea
+                id="pw-chat-draft"
+                ref={boxRef}
+                rows={1}
+                placeholder={attachment ? `Ask about ${attachment.filename}…` : "Ask Pathwise anything…"}
+                value={draft}
+                maxLength={4000}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  autoGrow();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+              <button
+                className="ai-send"
+                onClick={() => void send()}
+                disabled={busy || draft.trim().length === 0}
+                aria-label="Send"
+              >
+                {busy ? <Spinner size={16} /> : <SendIcon cls="icon-sm" />}
+              </button>
+            </div>
+            <p className="ai-disclaimer">
+              Pathwise can be wrong — check anything that matters against your material.
+            </p>
+          </div>
         </div>
       </div>
     </AppShell>

@@ -57,6 +57,53 @@ export function matchesVideoSignature(kind: VideoKind, buffer: Buffer): boolean 
   }
 }
 
+/** Voice notes (chat attachments). Browsers record webm/ogg on desktop and
+ *  Android, mp4/m4a on iOS Safari. */
+export type AudioKind = "webm" | "ogg" | "mp4" | "mpeg";
+
+export function matchesAudioSignature(kind: AudioKind, buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+
+  switch (kind) {
+    case "webm":
+      // Matroska/WebM EBML header — MediaRecorder's default container.
+      return (
+        buffer[0] === 0x1a &&
+        buffer[1] === 0x45 &&
+        buffer[2] === 0xdf &&
+        buffer[3] === 0xa3
+      );
+    case "ogg":
+      return buffer.subarray(0, 4).toString("latin1") === "OggS";
+    case "mp4":
+      // ISO BMFF (m4a / mp4 audio): size box then "ftyp".
+      return buffer.subarray(4, 8).toString("latin1") === "ftyp";
+    case "mpeg":
+      // MP3: either an ID3 tag or a raw frame sync (0xFF 0xEx/0xFx).
+      return (
+        buffer.subarray(0, 3).toString("latin1") === "ID3" ||
+        (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
+      );
+  }
+}
+
+/** Map a recorded blob's mime type onto a checkable audio kind. */
+export function audioKindFor(mimeType: string): AudioKind | null {
+  const m = mimeType.toLowerCase();
+  if (m.includes("webm")) return "webm";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "mp4";
+  if (m.includes("mpeg") || m.includes("mp3")) return "mpeg";
+  return null;
+}
+
+export const AUDIO_MIME: Record<AudioKind, string> = {
+  webm: "audio/webm",
+  ogg: "audio/ogg",
+  mp4: "audio/mp4",
+  mpeg: "audio/mpeg",
+};
+
 /** Same idea for image uploads (PATHWISE 2.0 Phase 5). */
 export function matchesImageSignature(kind: ImageKind, buffer: Buffer): boolean {
   if (buffer.length < 12) return false;

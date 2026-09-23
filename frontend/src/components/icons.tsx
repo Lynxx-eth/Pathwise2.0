@@ -93,6 +93,38 @@ export const ClockIcon = ({ cls = "icon", style }: IconProps) => (
   </svg>
 );
 
+// Chat attachment icons (photos, documents, voice notes).
+export const MicIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style}>
+    <rect x="9" y="2" width="6" height="11" rx="3" />
+    <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
+    <path d="M12 18v4" />
+    <path d="M8 22h8" />
+  </svg>
+);
+
+export const PaperclipIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style}>
+    <path d="M21.4 11.05 12.25 20.2a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66L9.4 17.4a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+
+export const ImageIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-4.35-4.35a2 2 0 0 0-2.83 0L4 20" />
+  </svg>
+);
+
+export const TrashIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style}>
+    <path d="M3 6h18" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+  </svg>
+);
+
 export const VolumeIcon = ({ cls = "icon", style }: IconProps) => (
   <svg {...base(cls)} style={style}>
     <path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none" />

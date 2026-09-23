@@ -17,6 +17,12 @@ import { socraticReply } from "../lib/aiMeter.js";
 import { detectAnswerLeak, fallbackProbe } from "../lib/socraticGuard.js";
 import { AIBudgetExceededError } from "../lib/aiMeter.js";
 import { mentionsPathwise, respondInRoom } from "../lib/pathwiseBot.js";
+import {
+  attachmentViewOf,
+  saveAttachment,
+  validateAttachment,
+} from "../lib/chatAttachments.js";
+import { storage } from "../lib/storage.js";
 import { track } from "../lib/analytics.js";
 import type { ChatMessage } from "../ai/types.js";
 
@@ -30,12 +36,30 @@ function shapedMessage(m: {
   role: string;
   content: string;
   createdAt: Date;
+  attachPath?: string | null;
+  attachKind?: string | null;
+  attachName?: string | null;
+  attachMime?: string | null;
+  attachSize?: number | null;
+  attachSeconds?: number | null;
 }, me: string) {
   return {
     id: m.id,
     role: m.role as "user" | "assistant",
     mine: m.senderId === me,
     content: m.content,
+    attachment: attachmentViewOf(
+      {
+        id: m.id,
+        attachPath: m.attachPath ?? null,
+        attachKind: m.attachKind ?? null,
+        attachName: m.attachName ?? null,
+        attachMime: m.attachMime ?? null,
+        attachSize: m.attachSize ?? null,
+        attachSeconds: m.attachSeconds ?? null,
+      },
+      "/api/rooms/messages"
+    ),
     createdAt: m.createdAt,
   };
 }
@@ -172,6 +196,101 @@ export default async function roomRoutes(app: FastifyInstance) {
         );
       }
       return reply.code(201).send({ message: shapedMessage(message, me) });
+    }
+  );
+
+  // Attachments in a study room — same validation and privacy rules as DMs.
+  app.post(
+    "/api/rooms/:id/attachments",
+    {
+      preHandler: [app.authenticate],
+      config: { rateLimit: { max: 30, timeWindow: "10 minutes" } },
+    },
+    async (req, reply) => {
+      const me = req.user.sub;
+      const { id } = req.params as { id: string };
+      const room = await prisma.studyRoom.findFirst({
+        where: { id, status: "active", OR: [{ aId: me }, { bId: me }] },
+      });
+      if (!room) return reply.code(404).send({ error: "Room not found" });
+
+      const data = await req.file();
+      if (!data) return reply.code(400).send({ error: "No file uploaded" });
+      const buffer = await data.toBuffer();
+
+      const checked = validateAttachment(data.filename ?? "upload", data.mimetype, buffer);
+      if (!checked.ok) {
+        return reply.code(checked.reason.status).send({ error: checked.reason.error });
+      }
+
+      const fields = data.fields as Record<string, { value?: unknown } | undefined>;
+      const rawCaption = fields?.content?.value;
+      const caption =
+        typeof rawCaption === "string" ? rawCaption.trim().slice(0, 2000) : "";
+      if (caption) {
+        const screened = screenText(caption);
+        if (!screened.ok) return reply.code(400).send({ error: screened.reason });
+      }
+      const rawSeconds = fields?.seconds?.value;
+      const seconds =
+        typeof rawSeconds === "string" && Number.isFinite(Number(rawSeconds))
+          ? Math.max(0, Math.min(3600, Math.round(Number(rawSeconds))))
+          : null;
+
+      const stored = await saveAttachment(me, checked.value, buffer);
+      const message = await prisma.studyRoomMessage.create({
+        data: {
+          roomId: id,
+          senderId: me,
+          content: caption,
+          attachPath: stored.storagePath,
+          attachKind: checked.value.kind,
+          attachName: checked.value.kind === "voice" ? null : (data.filename ?? null),
+          attachMime: checked.value.mime,
+          attachSize: stored.sizeBytes,
+          attachSeconds: checked.value.kind === "voice" ? seconds : null,
+        },
+      });
+      return reply.code(201).send({ message: shapedMessage(message, me) });
+    }
+  );
+
+  // Serve a room attachment — participants only.
+  app.get(
+    "/api/rooms/messages/:messageId/attachment",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const me = req.user.sub;
+      const { messageId } = req.params as { messageId: string };
+      const message = await prisma.studyRoomMessage.findFirst({
+        where: {
+          id: messageId,
+          room: { OR: [{ aId: me }, { bId: me }] },
+        },
+        select: {
+          attachPath: true,
+          attachMime: true,
+          attachName: true,
+          attachKind: true,
+        },
+      });
+      if (!message?.attachPath) {
+        return reply.code(404).send({ error: "Attachment not found" });
+      }
+      try {
+        const buffer = await storage.read(message.attachPath);
+        reply.header("Cache-Control", "private, max-age=86400");
+        if (message.attachKind === "file" && message.attachName) {
+          reply.header(
+            "Content-Disposition",
+            `attachment; filename="${message.attachName.replace(/[^\w.\-]/g, "_")}"`
+          );
+        }
+        reply.type(message.attachMime ?? "application/octet-stream");
+        return reply.send(buffer);
+      } catch {
+        return reply.code(404).send({ error: "Attachment not found" });
+      }
     }
   );
 

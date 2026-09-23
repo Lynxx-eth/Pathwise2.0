@@ -360,53 +360,51 @@ export default function Videos() {
           </div>
         )}
 
-        {/* In-app player for search results (item 1: play here first). */}
+        {/* In-app player for search results — full screen, plays here; the
+            only way out to YouTube is the explicit Source button. */}
         {player && (
-          <>
-            <div className="feed-sheet-backdrop" onClick={() => setPlayer(null)} />
-            <div className="video-modal" role="dialog" aria-label={player.title}>
-              <div className="video-modal-head">
-                <span style={{ fontWeight: 700, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {player.title}
-                </span>
-                <button
-                  className="icon-btn"
-                  onClick={() => setPlayer(null)}
-                  aria-label="Close player"
-                >
-                  ✕
-                </button>
-              </div>
-              {embedUrlOf(player.url) ? (
-                <div className="video-modal-frame">
-                  <iframe
-                    src={embedUrlOf(player.url)!}
-                    title={player.title}
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    style={{ border: 0, width: "100%", height: "100%" }}
-                  />
-                </div>
-              ) : (
-                <p style={{ padding: 16, fontSize: 13.5, color: "var(--ink-soft)" }}>
-                  This one can't be embedded — use the source link below.
-                </p>
-              )}
-              <div className="video-modal-foot">
-                <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
-                  {player.channel} · YouTube
-                </span>
-                <a
-                  className="btn btn-ghost btn-sm"
-                  href={player.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  <ExternalIcon cls="icon-sm" /> Source
-                </a>
-              </div>
+          <div className="video-modal" role="dialog" aria-label={player.title}>
+            <div className="video-modal-head">
+              <span style={{ fontWeight: 700, fontSize: 14.5, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {player.title}
+              </span>
+              <button
+                className="icon-btn"
+                onClick={() => setPlayer(null)}
+                aria-label="Close player"
+              >
+                ✕
+              </button>
             </div>
-          </>
+            {embedUrlOf(player.url) ? (
+              <div className="video-modal-frame">
+                <iframe
+                  src={embedUrlOf(player.url)!}
+                  title={player.title}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  style={{ border: 0, width: "100%", height: "100%", display: "block" }}
+                />
+              </div>
+            ) : (
+              <div className="feed-center">
+                <p>This one can't be embedded — open it at the source below.</p>
+              </div>
+            )}
+            <div className="video-modal-foot">
+              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)" }}>
+                {player.channel} · YouTube
+              </span>
+              <a
+                className="btn btn-ghost btn-sm"
+                href={player.url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <ExternalIcon cls="icon-sm" /> Source
+              </a>
+            </div>
+          </div>
         )}
 
         {/* Search + categories sheet. */}

@@ -781,6 +781,19 @@ model DirectMessage {
   // Swipe-to-reply (messaging overhaul Phase 2): the message this one quotes.
   // Plain id, no FK — a deleted original leaves the quote text standing.
   replyToId      String?
+
+  // Attachments (messaging overhaul Phase 3): one photo, document or voice
+  // note per message. The bytes live in the storage provider; only the key
+  // is here, so the GDPR sweep can delete them with the account.
+  attachPath     String?
+  attachKind     String?  // "image" | "file" | "voice"
+  attachName     String?  // original filename, shown on file bubbles
+  attachMime     String?
+  attachSize     Int?
+  // Voice notes: clip length in seconds, so the bubble can show it without
+  // downloading the audio first.
+  attachSeconds  Int?
+
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
@@ -970,6 +983,15 @@ model StudyRoomMessage {
   sender    User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
   role      String   @default("user") // "user" | "assistant"
   content   String
+
+  // Attachments — same shape as DirectMessage (messaging overhaul Phase 3).
+  attachPath    String?
+  attachKind    String?
+  attachName    String?
+  attachMime    String?
+  attachSize    Int?
+  attachSeconds Int?
+
   createdAt DateTime @default(now())
 
   @@index([roomId, createdAt])

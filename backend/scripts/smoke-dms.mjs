@@ -133,6 +133,89 @@ check(
 const selfSearch = await req("GET", `/api/users/search?q=dmsmokeb${stamp}`, { token: B.token });
 check("search never returns yourself", !(selfSearch.data?.users ?? []).some((u) => u.userId === B.id));
 
+// --- Attachments: photo, document, voice note (messaging Phase 3) ---
+async function sendAttachment(convId, token, filename, mime, buffer, extra = {}) {
+  const form = new FormData();
+  form.append("file", new Blob([buffer], { type: mime }), filename);
+  for (const [k, v] of Object.entries(extra)) form.append(k, String(v));
+  const res = await fetch(`${BASE}/api/dms/${convId}/attachments`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+  });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // non-JSON
+  }
+  return { status: res.status, data };
+}
+
+function fakePng(size = 2048) {
+  const buf = Buffer.alloc(size, 9);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buf, 0);
+  return buf;
+}
+function fakeWebmAudio(size = 3000) {
+  const buf = Buffer.alloc(size, 4);
+  Buffer.from([0x1a, 0x45, 0xdf, 0xa3]).copy(buf, 0);
+  return buf;
+}
+function fakePdf(size = 2048) {
+  const buf = Buffer.alloc(size, 32);
+  Buffer.from("%PDF-1.7\n").copy(buf, 0);
+  return buf;
+}
+
+const photo = await sendAttachment(convAB, A.token, "notes.png", "image/png", fakePng());
+check("photo attachment accepted (201)", photo.status === 201, `got ${photo.status}: ${JSON.stringify(photo.data)}`);
+check("photo reported as image", photo.data?.message?.kind === "image");
+
+const voice = await sendAttachment(convAB, A.token, "voice.webm", "audio/webm", fakeWebmAudio(), { seconds: 7 });
+check("voice note accepted (201)", voice.status === 201, `got ${voice.status}`);
+check("voice reported as voice", voice.data?.message?.kind === "voice");
+
+const doc = await sendAttachment(convAB, B.token, "syllabus.pdf", "application/pdf", fakePdf());
+check("document accepted (201)", doc.status === 201, `got ${doc.status}`);
+check("document reported as file", doc.data?.message?.kind === "file");
+
+// A disguised binary must be refused by magic bytes.
+const fake = await sendAttachment(
+  convAB,
+  A.token,
+  "totally-a-photo.png",
+  "image/png",
+  Buffer.from("MZ\x90\x00 an executable pretending to be a photo, padded out")
+);
+check("disguised file rejected (415)", fake.status === 415, `got ${fake.status}`);
+
+// The thread exposes the attachments with their metadata.
+const withAttachments = await req("GET", `/api/dms/${convAB}`, { token: A.token });
+const msgs = withAttachments.data?.conversation?.messages ?? [];
+const imageMsg = msgs.find((m) => m.attachment?.kind === "image");
+const voiceMsg = msgs.find((m) => m.attachment?.kind === "voice");
+const fileMsg = msgs.find((m) => m.attachment?.kind === "file");
+check("thread exposes the photo", Boolean(imageMsg?.attachment?.url));
+check("thread exposes the voice note with duration", voiceMsg?.attachment?.seconds === 7, JSON.stringify(voiceMsg?.attachment));
+check("thread exposes the document name", fileMsg?.attachment?.name === "syllabus.pdf");
+
+// Participants can fetch the bytes; outsiders cannot.
+const bytes = await fetch(`${BASE}${imageMsg.attachment.url}`, {
+  headers: { authorization: `Bearer ${B.token}` },
+});
+check("participant downloads the attachment (200)", bytes.status === 200, `got ${bytes.status}`);
+check("served with an image content-type", (bytes.headers.get("content-type") ?? "").includes("image/png"));
+const outsider = await fetch(`${BASE}${imageMsg.attachment.url}`, {
+  headers: { authorization: `Bearer ${C.token}` },
+});
+check("non-participant refused the attachment (404)", outsider.status === 404, `got ${outsider.status}`);
+
+// The conversation list labels an attachment-only message.
+const listWithAttach = await req("GET", "/api/dms", { token: B.token });
+const rowLabel = (listWithAttach.data?.conversations ?? []).find((c) => c.id === convAB)?.lastMessage;
+check("list labels the attachment", /Document|syllabus|📄/.test(rowLabel ?? ""), `label: ${rowLabel}`);
+
 // Badges: B has unread messages from A.
 const badgesB = await req("GET", "/api/badges", { token: B.token });
 check(
