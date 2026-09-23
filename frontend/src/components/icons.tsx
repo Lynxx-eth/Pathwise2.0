@@ -93,6 +93,27 @@ export const ClockIcon = ({ cls = "icon", style }: IconProps) => (
   </svg>
 );
 
+export const VolumeIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style}>
+    <path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+  </svg>
+);
+
+export const PauseIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style} fill="currentColor">
+    <rect x="6" y="4" width="4" height="16" rx="1" />
+    <rect x="14" y="4" width="4" height="16" rx="1" />
+  </svg>
+);
+
+export const StopIcon = ({ cls = "icon", style }: IconProps) => (
+  <svg {...base(cls)} style={style} fill="currentColor">
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+
 /** Double tick — WhatsApp-style "seen" receipt. */
 export const DoubleCheckIcon = ({ cls = "icon", style }: IconProps) => (
   <svg {...base(cls)} style={style}>

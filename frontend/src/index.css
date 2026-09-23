@@ -725,7 +725,55 @@ html, body { overflow-x: hidden; }
 .confidence-banner .txt { flex: 1; font-size: 13px; font-weight: 600; color: #6B4E0F; }
 
 /* ---- Socratic mode (fixed dark palette in both themes) ---- */
-.socratic-shell { min-height: 100vh; background: var(--soc-bg); color: var(--soc-text); display: flex; flex-direction: column; }
+.socratic-shell {
+  min-height: 100vh; background: var(--soc-bg); color: var(--soc-text);
+  display: flex; flex-direction: column;
+  position: relative; isolation: isolate; overflow: hidden;
+}
+/* Aurora: two slow-drifting glow orbs give the dark space life without
+   getting in the way of reading. Killed by prefers-reduced-motion. */
+.socratic-shell::before,
+.socratic-shell::after {
+  content: ""; position: absolute; z-index: -1; border-radius: 50%;
+  filter: blur(80px); opacity: 0.35; pointer-events: none;
+}
+.socratic-shell::before {
+  width: 480px; height: 480px; top: -160px; right: -120px;
+  background: radial-gradient(circle, var(--soc-accent), transparent 65%);
+  animation: socDrift 26s ease-in-out infinite alternate;
+}
+.socratic-shell::after {
+  width: 420px; height: 420px; bottom: -140px; left: -120px;
+  background: radial-gradient(circle, #4A3F8F, transparent 65%);
+  animation: socDrift 32s ease-in-out infinite alternate-reverse;
+}
+@keyframes socDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-60px, 50px) scale(1.15); }
+}
+/* Glowing hero icon on the intro card. */
+.soc-hero-icon {
+  width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--soc-accent);
+  background: rgba(156,140,255,0.12);
+  box-shadow: 0 0 0 1px rgba(156,140,255,0.25), 0 0 34px rgba(156,140,255,0.35);
+  animation: socPulse 3s ease-in-out infinite;
+}
+@keyframes socPulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(156,140,255,0.25), 0 0 24px rgba(156,140,255,0.3); }
+  50% { box-shadow: 0 0 0 1px rgba(156,140,255,0.45), 0 0 44px rgba(156,140,255,0.5); }
+}
+/* Animated thinking dots. */
+.soc-dots span { animation: socDot 1.2s infinite; display: inline-block; }
+.soc-dots span:nth-child(2) { animation-delay: 0.2s; }
+.soc-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes socDot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+/* Voice buttons on the dark shell. */
+.socratic-shell .soc-speak,
+.socratic-shell .icon-btn { color: var(--soc-text-soft); }
+.socratic-shell .icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--soc-text); }
+.socratic-shell .icon-btn.open { background: rgba(156,140,255,0.18); border-color: var(--soc-border); color: var(--soc-accent); }
 .socratic-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 38px; border-bottom: 1px solid var(--soc-border);
@@ -833,34 +881,101 @@ html, body { overflow-x: hidden; }
   75% { transform: translateX(4px); }
 }
 
-/* ---- First-run product tour ---- */
-.tour-backdrop {
+/* ---- First-run product tour v2: full-screen animated walkthrough ---- */
+.tour-screen {
   position: fixed; inset: 0; z-index: 400;
-  background: rgba(10, 20, 15, 0.55);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; overflow: hidden; isolation: isolate;
+  color: #fff; padding: 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  /* Solid floor under the crossfading gradients — never a white flash. */
+  background: #060B09;
 }
-.tour-card {
-  width: 420px; max-width: 100%;
-  background: var(--surface); border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
-  padding: 30px 26px 22px;
+/* One per step, stacked and crossfaded by the component. */
+.tour-bg { position: absolute; inset: 0; pointer-events: none; }
+.tour-orb {
+  position: absolute; width: 460px; height: 460px; border-radius: 50%;
+  filter: blur(90px); opacity: 0.5; pointer-events: none;
+  animation: socDrift 24s ease-in-out infinite alternate;
 }
-.tour-step { text-align: center; min-height: 190px; }
-.tour-icon {
-  width: 64px; height: 64px; border-radius: var(--r-md); margin: 0 auto 16px;
-  background: linear-gradient(155deg, #22C382, var(--primary) 55%, var(--primary-dark));
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, 0 8px 20px -4px rgba(10,92,64,0.45);
+.tour-orb.slow { animation-duration: 34s; animation-direction: alternate-reverse; }
+.tour-progress {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px; z-index: 3;
+  background: rgba(255,255,255,0.14);
 }
-.tour-step h2 { font-size: 19px; margin-bottom: 8px; }
-.tour-step p { font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); margin: 0; }
-.tour-dots { display: flex; gap: 6px; justify-content: center; margin: 18px 0 16px; }
-.tour-dots span {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+.tour-progress > span { display: block; height: 100%; background: #fff; border-radius: 0 4px 4px 0; }
+.tour-skip {
+  position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px; z-index: 3;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  color: #fff; font-weight: 700; font-size: 12.5px; font-family: var(--font-body);
+  padding: 8px 16px; border-radius: 100px; cursor: pointer;
+  transition: background var(--t-fast) ease;
+}
+.tour-skip:hover { background: rgba(255,255,255,0.22); }
+.tour-stage {
+  max-width: 520px; text-align: center; cursor: grab;
+  touch-action: pan-y; user-select: none;
+  position: relative; z-index: 2;
+}
+.tour-stage:active { cursor: grabbing; }
+.tour-ring {
+  width: 108px; height: 108px; border-radius: 50%; margin: 0 auto 26px;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: rgba(255,255,255,0.1);
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.35), 0 0 0 14px rgba(255,255,255,0.06),
+    0 0 70px rgba(255,255,255,0.25);
+  animation: tourHalo 3.2s ease-in-out infinite;
+}
+.tour-ring .icon-lg { width: 44px; height: 44px; }
+@keyframes tourHalo {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.35), 0 0 0 12px rgba(255,255,255,0.05), 0 0 55px rgba(255,255,255,0.2); }
+  50% { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.5), 0 0 0 18px rgba(255,255,255,0.09), 0 0 90px rgba(255,255,255,0.35); }
+}
+.tour-eyebrow {
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.75); margin-bottom: 10px;
+}
+.tour-stage h2 {
+  font-size: clamp(26px, 6vw, 36px); line-height: 1.15;
+  letter-spacing: -0.02em; margin-bottom: 14px; color: #fff;
+}
+.tour-stage p {
+  font-size: clamp(15px, 2.4vw, 17px); line-height: 1.65;
+  color: rgba(255,255,255,0.85); margin: 0; max-width: 46ch;
+  margin-inline: auto;
+}
+.tour-bottom {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 0 24px;
+}
+.tour-dots { display: flex; gap: 8px; }
+.tour-dots button {
+  width: 9px; height: 9px; border-radius: 50%; border: none; padding: 0;
+  background: rgba(255,255,255,0.3); cursor: pointer; position: relative;
   transition: background var(--t-fast) ease, transform var(--t-fast) ease;
 }
-.tour-dots span.on { background: var(--primary); transform: scale(1.25); }
-.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Invisible 30px hit area — a 9px dot is untappable on a phone. */
+.tour-dots button::after { content: ""; position: absolute; inset: -11px; }
+.tour-dots button.on { background: #fff; transform: scale(1.35); }
+.tour-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  width: min(420px, 100%); gap: 10px;
+}
+.tour-btn {
+  font-family: var(--font-body); font-weight: 800; font-size: 15px;
+  border-radius: 100px; padding: 14px 30px; cursor: pointer;
+  transition: transform var(--t-fast) ease, background var(--t-fast) ease;
+}
+.tour-btn:active { transform: scale(0.96); }
+.tour-btn.solid { background: #fff; color: #10201A; border: none; }
+.tour-btn.solid:hover { transform: translateY(-1px); }
+.tour-btn.ghost {
+  background: none; border: 1.5px solid rgba(255,255,255,0.35); color: #fff;
+}
+.tour-btn.ghost:hover { background: rgba(255,255,255,0.12); }
+.tour-hint { font-size: 11px; color: rgba(255,255,255,0.45); margin: 0; }
 
 /* 3D flashcard flip (Quiz review deck). */
 .flip-scene { perspective: 1100px; }
@@ -1048,6 +1163,12 @@ html, body { overflow-x: hidden; }
 /* Reading column for long-form pages (topic breakdowns) — a centered,
    comfortable measure like a Claude answer. */
 .reading-col { max-width: 780px; margin: 0 auto; }
+/* Claude-style elevated reading surface for the article itself. */
+.reading-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-xl); box-shadow: var(--shadow-sm);
+  padding: 26px clamp(18px, 5vw, 46px) 30px;
+}
 .reading-section { margin-bottom: 26px; }
 .reading-section > h2 {
   font-size: 19px; font-weight: 800; letter-spacing: -0.015em;

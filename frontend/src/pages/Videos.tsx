@@ -41,7 +41,16 @@ interface VideoRow {
   reason: string | null;
   likedByMe: boolean;
   savedByMe: boolean;
+  likeCount: number;
+  saveCount: number;
   action?: { topicId: string; courseId: string; topicName: string } | null;
+}
+
+/** 1.2k-style compact tallies under the action icons. */
+function compact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 function embedUrlOf(url: string): string | null {
@@ -113,19 +122,19 @@ function Slide({
               className={`feed-action ${v.likedByMe ? "on" : ""}`}
               onClick={() => onEngage(v, "like")}
               aria-pressed={v.likedByMe}
-              aria-label={v.likedByMe ? "Unlike" : "Like"}
+              aria-label={`${v.likedByMe ? "Unlike" : "Like"} — ${v.likeCount} likes`}
             >
               <HeartIcon cls="icon" filled={v.likedByMe} />
-              <small>Like</small>
+              <small>{compact(v.likeCount)}</small>
             </button>
             <button
               className={`feed-action ${v.savedByMe ? "on" : ""}`}
               onClick={() => onEngage(v, "save")}
               aria-pressed={v.savedByMe}
-              aria-label={v.savedByMe ? "Unsave" : "Save"}
+              aria-label={`${v.savedByMe ? "Unsave" : "Save"} — ${v.saveCount} saves`}
             >
               <BookmarkIcon cls="icon" filled={v.savedByMe} />
-              <small>{v.savedByMe ? "Saved" : "Save"}</small>
+              <small>{compact(v.saveCount)}</small>
             </button>
           </>
         )}
@@ -226,7 +235,7 @@ export default function Videos() {
 
   async function engage(v: VideoRow, kind: "like" | "save") {
     try {
-      const res = await api.post<{ kind: string; active: boolean }>(
+      const res = await api.post<{ kind: string; active: boolean; count: number }>(
         `/api/videos/${v.id}/engage`,
         { kind }
       );
@@ -236,6 +245,8 @@ export default function Videos() {
               ...row,
               likedByMe: kind === "like" ? res.active : row.likedByMe,
               savedByMe: kind === "save" ? res.active : row.savedByMe,
+              likeCount: kind === "like" ? res.count : row.likeCount,
+              saveCount: kind === "save" ? res.count : row.saveCount,
             }
           : row;
       if (shelf.data) {

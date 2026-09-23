@@ -9,7 +9,8 @@ import { api, ApiError } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { PuzzleIcon, SendIcon, SparklesIcon } from "../components/icons";
 import { Prose } from "../components/Prose";
-import { ErrorState, InlineError, Loading } from "../components/states";
+import { SpeakButton } from "../components/speech";
+import { ErrorState, InlineError, Loading, Spinner } from "../components/states";
 
 interface BreakdownSection {
   heading: string;
@@ -93,7 +94,13 @@ function AskPanel({ topicId, topicName }: { topicId: string; topicName: string }
               }}
             >
               {m.role === "assistant" ? (
-                <Prose text={m.content} compact />
+                <>
+                  <Prose text={m.content} compact />
+                  {/* Hear the answer read aloud, like the breakdown. */}
+                  <div style={{ marginTop: 6 }}>
+                    <SpeakButton text={m.content} iconOnly />
+                  </div>
+                </>
               ) : (
                 <span style={{ whiteSpace: "pre-wrap" }}>{m.content}</span>
               )}
@@ -101,7 +108,9 @@ function AskPanel({ topicId, topicName }: { topicId: string; topicName: string }
           </div>
         ))}
         {busy && (
-          <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>Thinking…</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Spinner size={13} /> Thinking…
+          </div>
         )}
       </div>
 
@@ -179,6 +188,27 @@ export default function TopicView() {
 
   const { breakdown } = data;
 
+  // The full narration script — heading cues included so listening alone
+  // carries the structure (Claude-style read-aloud).
+  const narration = [
+    `${data.topicName}.`,
+    breakdown.overview,
+    ...breakdown.sections.flatMap((s) => [
+      `${s.heading}.`,
+      s.body,
+      s.example ? `Worked example. ${s.example}` : "",
+    ]),
+    breakdown.misconceptions.length > 0
+      ? "Watch out for these. " +
+        breakdown.misconceptions
+          .map((m) => `A common myth: ${m.myth}. The truth: ${m.truth}.`)
+          .join(" ")
+      : "",
+    breakdown.summary ? `Before your exam, remember. ${breakdown.summary}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   return (
     <AppShell>
       <div className="reading-col">
@@ -193,16 +223,19 @@ export default function TopicView() {
           <div style={{ minWidth: 0 }}>
             <h1 className="page-title">{data.topicName}</h1>
           </div>
-          <button className="btn btn-primary" onClick={startQuiz} style={{ flexShrink: 0 }}>
-            <PuzzleIcon cls="icon" /> Quiz me on this
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+            <SpeakButton text={narration} label="Listen" />
+            <button className="btn btn-primary" onClick={startQuiz}>
+              <PuzzleIcon cls="icon" /> Quiz me on this
+            </button>
+          </div>
         </div>
 
         <InlineError message={quizError} />
 
-        {/* The breakdown reads like a Claude answer: one flowing article,
-            real reading typography, thick bold highlights, callouts. */}
-        <article>
+        {/* The breakdown reads like a Claude answer: one elevated reading
+            card, real typography, thick bold highlights, callouts. */}
+        <article className="reading-card">
           {breakdown.overview && (
             <div className="reading-section">
               <Prose text={breakdown.overview} />

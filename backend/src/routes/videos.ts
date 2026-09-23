@@ -28,6 +28,24 @@ export default async function videoRoutes(app: FastifyInstance) {
   // course topics, taste from likes/saves, watch-history demotion — with a
   // "quiz yourself" action wherever a video maps onto the learner's own
   // topics. Recommendations route back into learning, not endless scroll.
+  // Total like/save tallies per video, one grouped query for a page of ids.
+  async function engagementCounts(videoIds: string[]) {
+    const map = new Map<string, { like: number; save: number }>();
+    if (videoIds.length === 0) return map;
+    const rows = await prisma.videoEngagement.groupBy({
+      by: ["videoId", "kind"],
+      where: { videoId: { in: videoIds }, kind: { in: ["like", "save"] } },
+      _count: { _all: true },
+    });
+    for (const r of rows) {
+      const entry = map.get(r.videoId) ?? { like: 0, save: 0 };
+      if (r.kind === "like") entry.like = r._count._all;
+      if (r.kind === "save") entry.save = r._count._all;
+      map.set(r.videoId, entry);
+    }
+    return map;
+  }
+
   app.get(
     "/api/fyp",
     { preHandler: [app.authenticate] },
@@ -44,9 +62,11 @@ export default async function videoRoutes(app: FastifyInstance) {
       const saved = new Set(
         engagements.filter((e) => e.kind === "save").map((e) => e.videoId)
       );
+      const page = feed.slice(0, 20);
+      const counts = await engagementCounts(page.map((f) => f.video.id));
 
       return reply.send({
-        feed: feed.slice(0, 20).map((f) => ({
+        feed: page.map((f) => ({
           id: f.video.id,
           title: f.video.title,
           creator: f.video.creator,
@@ -58,6 +78,8 @@ export default async function videoRoutes(app: FastifyInstance) {
           reason: f.reason,
           likedByMe: liked.has(f.video.id),
           savedByMe: saved.has(f.video.id),
+          likeCount: counts.get(f.video.id)?.like ?? 0,
+          saveCount: counts.get(f.video.id)?.save ?? 0,
           action: f.action,
         })),
       });
@@ -181,26 +203,28 @@ export default async function videoRoutes(app: FastifyInstance) {
         engagements.filter((e) => e.kind === "save").map((e) => e.videoId)
       );
 
-      const rows = ranked
-        .filter(
-          (r) =>
-            !subject ||
-            r.video.subject.toLowerCase() === subject.toLowerCase()
-        )
-        .map((r) => ({
-          id: r.video.id,
-          title: r.video.title,
-          creator: r.video.creator,
-          url: r.video.url,
-          thumbnailUrl: r.video.thumbnailUrl,
-          subject: r.video.subject,
-          topics: r.video.topics,
-          difficulty: r.video.difficulty,
-          durationSec: r.video.durationSec,
-          reason: r.reason,
-          likedByMe: liked.has(r.video.id),
-          savedByMe: saved.has(r.video.id),
-        }));
+      const filtered = ranked.filter(
+        (r) =>
+          !subject ||
+          r.video.subject.toLowerCase() === subject.toLowerCase()
+      );
+      const counts = await engagementCounts(filtered.map((r) => r.video.id));
+      const rows = filtered.map((r) => ({
+        id: r.video.id,
+        title: r.video.title,
+        creator: r.video.creator,
+        url: r.video.url,
+        thumbnailUrl: r.video.thumbnailUrl,
+        subject: r.video.subject,
+        topics: r.video.topics,
+        difficulty: r.video.difficulty,
+        durationSec: r.video.durationSec,
+        reason: r.reason,
+        likedByMe: liked.has(r.video.id),
+        savedByMe: saved.has(r.video.id),
+        likeCount: counts.get(r.video.id)?.like ?? 0,
+        saveCount: counts.get(r.video.id)?.save ?? 0,
+      }));
 
       const subjects = [...new Set(ranked.map((r) => r.video.subject))].sort();
       return reply.send({ videos: rows, subjects });
@@ -246,15 +270,22 @@ export default async function videoRoutes(app: FastifyInstance) {
       const existing = await prisma.videoEngagement.findFirst({
         where: { userId: req.user.sub, videoId: id, kind },
       });
+      let active: boolean;
       if (existing) {
         await prisma.videoEngagement.delete({ where: { id: existing.id } });
-        return reply.send({ kind, active: false });
+        active = false;
+      } else {
+        await prisma.videoEngagement.create({
+          data: { userId: req.user.sub, videoId: id, kind },
+        });
+        await track(req.user.sub, "video_engaged", { videoId: id, kind });
+        active = true;
       }
-      await prisma.videoEngagement.create({
-        data: { userId: req.user.sub, videoId: id, kind },
+      // The fresh tally, so the UI shows the real number instantly.
+      const count = await prisma.videoEngagement.count({
+        where: { videoId: id, kind },
       });
-      await track(req.user.sub, "video_engaged", { videoId: id, kind });
-      return reply.send({ kind, active: true });
+      return reply.send({ kind, active, count });
     }
   );
 

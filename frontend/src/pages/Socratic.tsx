@@ -101,10 +101,9 @@ export default function Socratic() {
       </div>
 
       <div className="socratic-intro-card">
-        <SparklesIcon
-          cls="icon-lg"
-          style={{ margin: "0 auto 14px auto", color: "var(--soc-accent)" }}
-        />
+        <div className="soc-hero-icon">
+          <SparklesIcon cls="icon-lg" />
+        </div>
         <h1 style={{ color: "var(--soc-text)", fontSize: 20, marginBottom: 10 }}>
           Thinking Together
         </h1>

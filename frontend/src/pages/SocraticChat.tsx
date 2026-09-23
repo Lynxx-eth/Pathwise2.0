@@ -13,6 +13,7 @@ import {
   ShieldIcon,
   SendIcon,
 } from "../components/icons";
+import { SpeakButton } from "../components/speech";
 
 interface Message {
   id: string;
@@ -163,7 +164,13 @@ export default function SocraticChat() {
       <div className="chat-area" aria-live="polite">
         {messages.map((msg) => (
           <div key={msg.id} className={`chat-msg ${msg.role === "assistant" ? "ai" : "user"}`}>
-            {msg.role === "assistant" && <div className="tag">GUIDE</div>}
+            {msg.role === "assistant" && (
+              <div className="tag" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                GUIDE
+                {/* Voice: hear the tutor's question read aloud. */}
+                <SpeakButton text={msg.content} iconOnly className="soc-speak" />
+              </div>
+            )}
             {msg.content}
           </div>
         ))}
@@ -171,7 +178,9 @@ export default function SocraticChat() {
         {thinking && (
           <div className="chat-msg ai">
             <div className="tag">GUIDE</div>
-            <span style={{ color: "var(--soc-text-soft)" }}>Thinking…</span>
+            <span className="soc-thinking" style={{ color: "var(--soc-text-soft)" }}>
+              Thinking<span className="soc-dots"><span>.</span><span>.</span><span>.</span></span>
+            </span>
           </div>
         )}
 
