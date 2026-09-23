@@ -32,6 +32,8 @@ export interface User {
   bestStreak: number;
   rank: { level: number; name: string; progress: number; nextXp: number | null };
   socraticIntroSeen: boolean;
+  /** Has this ACCOUNT been through the product tour? (Server-side flag.) */
+  tourSeen: boolean;
   isPremium: boolean;
   // Guest mode (PATHWISE 2.0 Phase 1).
   isGuest: boolean;
@@ -134,12 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setToken(res.token);
     setUser(res.user);
-    // Brand-new account → show the product tour once (components/Tour.tsx).
-    try {
-      localStorage.setItem("pathwise_show_tour", "1");
-    } catch {
-      // Storage blocked — they just miss the tour.
-    }
+    // The tour shows itself: a new account comes back with tourSeen false
+    // (components/Tour.tsx watches that), so nothing to flag here.
   }
 
   async function signin(email: string, password: string) {
@@ -175,12 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The claim re-signs the token — the old one carries the guest identity.
     setToken(res.token);
     setUser(res.user);
-    // Claiming IS the real signup moment for a guest — tour applies too.
-    try {
-      localStorage.setItem("pathwise_show_tour", "1");
-    } catch {
-      // Storage blocked — they just miss the tour.
-    }
   }
 
   async function acceptPrivacy() {

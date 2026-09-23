@@ -48,6 +48,10 @@ model User {
 
   // First-run explainers (Step 7 item 4) — shown once each.
   socraticIntroSeenAt DateTime?
+  // The product tour. Server-side on purpose: a localStorage flag is
+  // per-BROWSER, so one person finishing the tour would hide it from every
+  // later signup on that device.
+  tourSeenAt          DateTime?
 
   // Notification preferences (Steps 10 + 12).
   notifyStreak      Boolean @default(true)

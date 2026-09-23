@@ -72,6 +72,7 @@ function publicUser(
     username: string | null;
     privacyAcceptedAt: Date | null;
     socraticIntroSeenAt: Date | null;
+    tourSeenAt?: Date | null;
     xp: number;
     streakCount: number;
     bestStreak: number;
@@ -93,6 +94,8 @@ function publicUser(
     avatarFrame: u.avatarFrame ?? "classic",
     privacyAccepted: u.privacyAcceptedAt !== null,
     socraticIntroSeen: u.socraticIntroSeenAt !== null,
+    // New accounts start false, so the product tour runs once per ACCOUNT.
+    tourSeen: (u.tourSeenAt ?? null) !== null,
     xp: u.xp,
     streakCount: u.streakCount,
     bestStreak: u.bestStreak,

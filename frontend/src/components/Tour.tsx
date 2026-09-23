@@ -8,10 +8,14 @@
 // Reduced-motion users get the same tour with transforms disabled (the
 // app-wide MotionConfig + CSS kill-switch handle it).
 //
-// Visibility is self-managed: auth sets "pathwise_show_tour" on signup or
-// guest-claim; finishing or skipping stamps "pathwise_tour_done" forever.
+// Visibility is server-side (User.tourSeenAt): a brand-new account arrives
+// with tourSeen false, and finishing or skipping stamps it. Per ACCOUNT, not
+// per browser — a localStorage flag hid the tour from every later signup on
+// the same device.
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import {
   BrainIcon,
   MailIcon,
@@ -22,8 +26,6 @@ import {
 } from "./icons";
 import { LogoMark } from "./Logo";
 
-const SHOW_KEY = "pathwise_show_tour";
-const DONE_KEY = "pathwise_tour_done";
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 interface Step {
@@ -87,16 +89,6 @@ const STEPS: Step[] = [
   },
 ];
 
-function shouldShow(): boolean {
-  try {
-    return (
-      localStorage.getItem(SHOW_KEY) === "1" &&
-      localStorage.getItem(DONE_KEY) !== "1"
-    );
-  } catch {
-    return false;
-  }
-}
 
 /** The curtain-raiser after the last step: logo assembles, wordmark and
  *  tagline rise, rings bloom outward, then the door opens to the app. */
@@ -172,10 +164,15 @@ function WelcomeFrame({ onEnter }: { onEnter: () => void }) {
 }
 
 export function Tour() {
-  const [open, setOpen] = useState(shouldShow);
+  const { user, patchUser } = useAuth();
+  // Dismissed locally the instant they act, so the overlay never lingers
+  // while the server round-trip lands.
+  const [dismissed, setDismissed] = useState(false);
   const [[step, dir], setStep] = useState<[number, number]>([0, 0]);
   const [welcome, setWelcome] = useState(false);
 
+  // Shows once per ACCOUNT: a fresh signup arrives with tourSeen false.
+  const open = Boolean(user) && user?.tourSeen === false && !dismissed;
   const last = step === STEPS.length - 1;
 
   function go(next: number) {
@@ -183,15 +180,13 @@ export function Tour() {
     setStep([next, next > step ? 1 : -1]);
   }
 
-  /** Stamp it done and close — used by Skip and by the welcome frame. */
+  /** Stamp it seen server-side and close — Skip and the welcome frame. */
   function close() {
-    try {
-      localStorage.removeItem(SHOW_KEY);
-      localStorage.setItem(DONE_KEY, "1");
-    } catch {
-      // Storage blocked — the tour just won't persist its dismissal.
-    }
-    setOpen(false);
+    setDismissed(true);
+    patchUser({ tourSeen: true });
+    void api.post("/api/profile/tour-seen", { seen: true }).catch(() => {
+      // If the stamp fails they'd see it again next visit — acceptable.
+    });
   }
 
   /** Finishing the last step raises the welcome curtain first. */

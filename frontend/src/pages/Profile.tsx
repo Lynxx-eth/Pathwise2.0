@@ -503,6 +503,35 @@ export default function Profile() {
         {saving ? "Saving…" : "Save changes"}
       </button>
 
+      {/* Replay the product tour — handy for showing someone around, and
+          the only way back to it once an account has seen it. */}
+      <div className="card" style={{ marginBottom: 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontSize: 14.5, marginBottom: 4 }}>Product tour</h2>
+          <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>
+            Walk through what Pathwise does, one feature at a time.
+          </p>
+        </div>
+        <button
+          className="btn btn-ghost"
+          style={{ flexShrink: 0 }}
+          onClick={async () => {
+            setSaveError(null);
+            try {
+              await api.post("/api/profile/tour-seen", { seen: false });
+              await refresh();
+              navigate("/courses");
+            } catch (err) {
+              setSaveError(
+                err instanceof ApiError ? err.message : "Couldn't start the tour."
+              );
+            }
+          }}
+        >
+          Replay tour
+        </button>
+      </div>
+
       {/* Learning profile (PATHWISE 2.0 Phase 2) — the onboarding answers,
           editable any time. */}
       <div className="card" style={{ marginBottom: 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>

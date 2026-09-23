@@ -291,6 +291,24 @@ export default async function profileRoutes(app: FastifyInstance) {
     }
   });
 
+  // Product tour: mark it seen (finished or skipped), or clear the flag to
+  // replay it. Server-side so it's once per ACCOUNT, not per browser.
+  app.post(
+    "/api/profile/tour-seen",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const parsed = z
+        .object({ seen: z.boolean().optional() })
+        .safeParse(req.body ?? {});
+      const seen = parsed.success ? parsed.data.seen !== false : true;
+      await prisma.user.update({
+        where: { id: req.user.sub },
+        data: { tourSeenAt: seen ? new Date() : null },
+      });
+      return reply.send({ tourSeen: seen });
+    }
+  );
+
   // Choose an avatar frame. Free frames for everyone; earned frames are
   // enforced here, not just hidden in the UI.
   app.post(
